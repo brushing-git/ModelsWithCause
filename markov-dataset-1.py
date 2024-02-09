@@ -44,5 +44,5 @@ for i in range(TESIZE):
 
 testing_d = testing_d.astype(np.single)
 
-np.savetxt("markov-dataset-1-training.txt", training_d, delimiter="", fmt='%d')
-np.savetxt("markov-dataset-1-testing.txt", testing_d, delimiter="", fmt='%d')
+np.savetxt("markov-dataset-1-training.txt", training_d, delimiter="", newline="", fmt='%d')
+np.savetxt("markov-dataset-1-testing.txt", testing_d, delimiter="", newline="", fmt='%d')
