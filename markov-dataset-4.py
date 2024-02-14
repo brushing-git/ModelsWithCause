@@ -23,8 +23,8 @@ transition = np.array([[.251, .252, .253, .244],[.01, .08, .02, .89],[.2, .3, .0
 
 training_d = np.zeros((TRSIZE, RVL))
 
-# initial state: coin 1 (index 0)
-coin_state = 0 
+# initial state
+coin_state: int = 3
 
 for i in range(TRSIZE):
     # switch depending on current coin state and transition probabilities table
@@ -34,7 +34,7 @@ for i in range(TRSIZE):
 
 training_d = training_d.astype(np.single)
 
-coin_state: int = 0
+coin_state: int = 3
         
 testing_d = np.zeros((TESIZE, RVL))
 for i in range(TESIZE):
