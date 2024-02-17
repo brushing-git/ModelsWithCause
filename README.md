@@ -1,1 +1,2 @@
 # CausalReasoning
+The generated Datasets represents either coin flips or dice rolls from a six-sided dice. They are generated using a pre-determined bias for a certain value, and utilizes Markov chain and Partial exchangability techniqies to ensure that the probability of the outcomes (be it head/tails or value of the dice) are dependant on the previous results rather than pure randomness. This data was created with the purpose of training AI to be able to predict the successive sequence will be given the current sequence.
