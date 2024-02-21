@@ -24,3 +24,6 @@ f.write('')
 f.close()
 
 np.savetxt("standard-binary-1-training.txt", training_d, delimiter="", newline=",", fmt='%d')
+
+from humanReadable import *
+translateCSV(training_d, 0, "standard-binary-data-readable.csv")

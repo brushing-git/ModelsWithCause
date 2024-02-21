@@ -37,3 +37,6 @@ f.write('')
 f.close()
 
 np.savetxt("markov-binary-1-training.txt", training_d, delimiter="", newline=",", fmt='%d')
+
+from humanReadable import *
+translateCSV(training_d, 0, "markov-binary-data-readable.csv")

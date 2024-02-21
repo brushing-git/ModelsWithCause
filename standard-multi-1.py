@@ -29,3 +29,6 @@ f.write('')
 f.close()
 
 np.savetxt("standard-multi-1-training.txt", training_d, delimiter="", newline=",", fmt='%d')
+
+from humanReadable import *
+translateCSV(training_d, 1, "standard-multi-data-readable.csv")
