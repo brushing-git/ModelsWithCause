@@ -20,7 +20,10 @@ training_d = training_d.astype(np.single)
 
 # print parameters
 f = open('standard-binary-1-parameters.txt', 'w')
-f.write('')
+f.write("number of coins: %d\n", len(prior))
+f.write("biases of coins (respectively): ", coin_biases, "\n")
+f.write("transition probabilities (respectively): ", prior, "\n")
+f.write("procedure:\n")
 f.close()
 
 np.savetxt("standard-binary-1-training.txt", training_d, delimiter="", newline=",", fmt='%d')
