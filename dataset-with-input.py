@@ -20,7 +20,7 @@ RVL = 10
 # example, given 7 coins, each with a different probability of being picked
 # p1 = 0 # no chance of heads/all tails
 # p2 = 0.2 # 20%                   
-# p3 = 0.4 # 30%                   -|
+# p3 = 0.4 # 40%                   -|
 # p4 = 0.5 # 50%, standard coinflip | more likely to pick these coins
 # p5 = 0.6 # 60%                   -|
 # p6 = 0.8 # 80%                   
