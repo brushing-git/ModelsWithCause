@@ -7,7 +7,7 @@ import numpy as np
 np.random.seed(69)
 
 # Build the data set
-TRSIZE = 5000000 # 5 million
+TRSIZE = 1000000 # 1 million
 RVL = 10 # size (~number of trials)
 
 coins = np.array([0, 1, 2, 3])
@@ -33,7 +33,7 @@ training_d = training_d.astype(np.single)
 
 # print parameters
 f = open('markov-binary-1-parameters.txt', 'w')
-f.write()
+f.write('')
 f.close()
 
 np.savetxt("markov-binary-1-training.txt", training_d, delimiter="", newline=",", fmt='%d')
