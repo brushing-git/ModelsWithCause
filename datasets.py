@@ -24,11 +24,11 @@ class ExchangeData(Dataset):
         
         return x, y
 
-def load_data(fn: str) -> np.ndarray:
+def load_data(fn: str, item_len: int) -> np.ndarray:
     data = np.loadtxt(fn, dtype='str')
     data = data.item()
 
-    X = np.array([[float(c) for c in data[i:i+10]] for i in range(0, len(data), 10)])
+    X = np.array([[float(c) for c in data[i:i+10]] for i in range(0, len(data), item_len)])
     return X
 
 def build_trte_dataloader(X: np.ndarray, te_size=0.2) -> tuple:

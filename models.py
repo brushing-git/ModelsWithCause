@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import utils as ut
 from torch.distributions import Categorical
+from moe import MoEDecoderLayer, MoEDecoder
 from math import log, sqrt
 from tqdm import tqdm
 
@@ -58,14 +59,10 @@ class NADE(nn.Module):
 
         if sample:
             x_hat = torch.cat(x_hat)
+            x_hat = x_hat.type(torch.long)
             return y_hat, p_hat, x_hat
         else:
             return y_hat, p_hat
-    
-    def sample(self, n=1) -> list:
-        a_d = self.params['c'].expand(n, -1)
-        _, _, x_hat = self._estimate_logits(a_d, x=None, sample=True)
-        return x_hat.tolist()
     
     def _compute_loss(self, y_hat, y, loss_fn) -> torch.Tensor:
         total_loss = 0
@@ -105,6 +102,15 @@ class NADE(nn.Module):
         te_loss = sum(val_loss) / len(val_loss)
 
         return te_loss
+    
+    def sample(self, n=1) -> list:
+        a_d = self.params['c'].expand(n, -1)
+        _, _, x_hat = self._estimate_logits(a_d, x=None, sample=True)
+        return x_hat.tolist()
+    
+    def parameter_count(self):
+        total_params = sum(p.numel() for p in self.parameters())
+        print(f"Number of parameters: {total_params}")    
 
     def fit(self, tr_loader, te_loader, epochs: int, lr: float, step_size=50) -> dict:
         self.to(self.device)
@@ -325,6 +331,9 @@ class Transformer(nn.Module):
 
         return p_hat
 
+    def parameter_count(self):
+        total_params = sum(p.numel() for p in self.parameters())
+        print(f"Number of parameters: {total_params}")
 
     def fit(self, tr_loader, te_loader, epochs: int, lr: float, step_size=50) -> dict:
         self.to(self.device)
@@ -363,3 +372,54 @@ class Transformer(nn.Module):
             scheduler.step()
 
         return hist
+
+class DecoderTransformer(Transformer):
+    def __init__(self, n_tokens: int, dim_model: int, n_heads: int, 
+                 n_decoder_lyrs: int, dropout_p: float,
+                 optimizer=torch.optim.Adam, SOS_token=8, EOS_token=9) -> None:
+        super().__init__(n_tokens=n_tokens, dim_model=dim_model, n_heads=n_heads,
+                        n_encoder_lyrs=1, n_decoder_lyrs=n_decoder_lyrs,
+                        dropout_p=dropout_p, optimizer=optimizer, SOS_token=SOS_token,
+                        EOS_token=EOS_token)
+        
+        decoder_lyr = nn.TransformerDecoderLayer(d_model=dim_model, nhead=n_heads, dropout=dropout_p)
+        decoder_norm = nn.LayerNorm(dim_model)
+        self.decoder = nn.TransformerDecoder(decoder_layer=decoder_lyr,
+                                                  num_layers=n_decoder_lyrs,
+                                                  norm=decoder_norm)
+    
+    def forward(self, src, tgt, tgt_mask=None, src_pad_mask=None, 
+                tgt_pad_mask=None) -> torch.tensor:
+        src = self.embedding(src) * sqrt(self.dim_model)
+        tgt = self.embedding(tgt) * sqrt(self.dim_model)
+        src = self.positional_encoder(src)
+        tgt = self.positional_encoder(tgt)
+
+        src = src.permute(1,0,2)
+        tgt = tgt.permute(1,0,2)
+
+        decoder_out = self.decoder(tgt, 
+                                   src, 
+                                   tgt_mask=tgt_mask, 
+                                   tgt_key_padding_mask=tgt_pad_mask, 
+                                   memory_key_padding_mask=src_pad_mask)
+        out = self.out(decoder_out)
+
+        return out
+
+class MoEDecoderTransformer(DecoderTransformer):
+    def __init__(self, n_tokens: int, dim_model: int, n_heads: int, 
+                 n_decoder_lyrs: int, dropout_p: float, n_experts: int, 
+                 top_k=2, dim_feedforward=2048, optimizer=torch.optim.Adam, 
+                 SOS_token=8, EOS_token=9) -> None:
+        super().__init__(n_tokens=n_tokens, dim_model=dim_model, n_heads=n_heads,
+                        n_decoder_lyrs=n_decoder_lyrs, dropout_p=dropout_p, 
+                        optimizer=optimizer, SOS_token=SOS_token, EOS_token=EOS_token)
+        
+        decoder_lyr = MoEDecoderLayer(dim_model=dim_model, n_heads=n_heads, 
+                                      n_experts=n_experts, top_k=top_k, dropout=dropout_p,
+                                      ffn=dim_feedforward)
+        decoder_norm = nn.LayerNorm(dim_model)
+        self.decoder = MoEDecoder(decoder_layer=decoder_lyr,
+                                  num_layers=n_decoder_lyrs,
+                                  norm=decoder_norm)
