@@ -1,7 +1,3 @@
-# MARKOV-BINARY-1
-
-# Colin Roberson, Bruce Rushing
-
 import numpy as np
 
 np.random.seed(69)
@@ -28,7 +24,7 @@ for i in range(TRSIZE):
     arr=transition[coin_state]
     coin_state = np.random.choice(coins, p=arr)
     training_d[i,:] = np.random.binomial(n=1,p=biases[coin_state],size=RVL)
-
+    
 training_d = training_d.astype(np.single)
 
 # print parameters

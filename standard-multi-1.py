@@ -11,7 +11,6 @@ prior = rand_array_ONE(6)
 
 training_d = np.zeros((TRSIZE, RVL))
 for i in range(TRSIZE):
-    # cycle 3 coins
     arr = np.random.multinomial(1, prior, 1)
     switch = int(str(np.where(arr == 1)[1])[1])
     # transition to {switch} die which has its own biases
@@ -25,7 +24,11 @@ training_d = training_d.astype(np.single)
 
 # print parameters
 f = open('standard-multi-1-parameters.txt', 'w')
-f.write('')
+f.write("number of dice: %d\n", len(prior))
+f.write("probability distribution of dice (respectively): " + prior + "\n")
+f.write("biases of each die: " + die_biases + "/n")
+f.write("procedure:\n")
+f.write("\t1. choose die based on probabilities\n\t2. roll die 10 times\n\t3. repeat")
 f.close()
 
 np.savetxt("standard-multi-1-training.txt", training_d, delimiter="", newline=",", fmt='%d')

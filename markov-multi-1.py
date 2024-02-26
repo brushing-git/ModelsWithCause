@@ -1,7 +1,3 @@
-# EXCHANGE-DATASET-1
-
-# Colin Roberson, Bruce Rushing
-
 import numpy as np
 from random_functions import *
 
@@ -11,35 +7,40 @@ np.random.seed(252)
 TRSIZE = 1000 # 1 million
 RVL = 10 # size
 
-# 6-sided die
-sides = np.array([0, 1, 2, 3, 4, 5])
-# "consider the previous n rolls to calculate next roll"
-consider_n = 5
-# procedure: consider starting letter and count transitions between letters; sequences with the same transition counts have equal probability
+# number of dice
+dice = 4
+# sides per die
+sides = 6
+# biases for sides of each dice
+# used only to generate 10 rolls once dice_state is determined via transition probabilities
+biases = rand_arrays_ONE(6, 4)
+# "consider the previous n elements to calculate next roll"
+consider_n = 4
 
-# each starting array corresponds to an n x n matrix
-starting_all = np.array([rand_arrays(len(sides), len(sides)), rand_arrays(len(sides), len(sides)), rand_arrays(len(sides), len(sides)), rand_arrays(len(sides), len(sides)), rand_arrays(len(sides), len(sides)), rand_arrays(len(sides), len(sides))])
+# probabilities for transition to element x given previous consider_n-length sequence ...
+transition_matrix = np.zeros()
+for i in range(consider_n):
+    transition_matrix[i] = rand_arrays_ONE(dice, dice)
 
 training_d = np.zeros((TRSIZE, RVL))
 
-# initial state:
-training_d[0][0] = 2
+# track previous consider_n-length sequence
+previous_states = np.zeros(consider_n)
 
 for i in range(TRSIZE):
-    # observe previous consider_n states to determine starting value and transition count
-    backstep = min(consider_n, i)
-    # starting value in consider_n-length sequence
-    starting = training_d[i - backstep][0]
-    # transitition matrix for starting value state
-    prob_arr = starting_all[starting]
-    # grab consider_n-length sequence
-    prev_seq = training_d[i - backstep, i]
-    transitions = np.array((len(prev_seq), 2))
-    for j in range(len(prev_seq) - 1):
-        transitions[j] = (prev_seq[j], prev_seq[j + 1])
-    next_value = -1
-    for j in range(len(transitions)):
-        next_value
+    if i < consider_n:
+        dice_state = np.random.choice(dice)
+        previous_states[i] = dice_state
+    else:
+        arr = transition_matrix[dice_state]
+
+
+    # current dice_state computed
+    trial = np.random.multinomial(1, biases[dice_state], RVL)
+    index = np.zeros(RVL)
+    for j in range(RVL):
+        index[j] = int(str(np.where(trial[j] == 1)[0])[1])
+    training_d[i,:] = index
 
 training_d = training_d.astype(np.single)
 
