@@ -66,8 +66,8 @@ training_d = training_d.astype(np.single)
 # print parameters
 f = open('markov-multi-1-parameters.txt', 'w')
 param = "number of dice: " +  str(dice) + "\n"
-param += "biases of each die: " + str(biases) + "\n"
-param += "transition probabilities: " + str(transition_matrix) + "\n"
+param += "biases of each die:\n" + str(biases) + "\n"
+param += "transition probabilities:\n" + str(transition_matrix) + "\n"
 param += "procedure: see additional documents\n"
 f.write(param)
 f.close()

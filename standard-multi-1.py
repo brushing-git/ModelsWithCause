@@ -26,7 +26,7 @@ training_d = training_d.astype(np.single)
 f = open('standard-multi-1-parameters.txt', 'w')
 param = "number of dice: " + str(len(prior)) + "\n"
 param += "probability distribution of dice (respectively): " + str(prior) + "\n"
-param += "biases of each die: " + str(die_biases) + "\n"
+param += "biases of each die:\n" + str(die_biases) + "\n"
 param += "procedure:\n"
 param += "\t1. choose die based on probabilities\n\t2. roll die 10 times\n\t3. repeat"
 f.write(param)

@@ -29,9 +29,9 @@ training_d = training_d.astype(np.single)
 
 # print parameters
 f = open('markov-binary-1-parameters.txt', 'w')
-param = "number of coins: " + str(len(coins)) + "\n"
+param = "number of coins:" + str(len(coins)) + "\n"
 param += "biases of coins (respectively): " + str(biases) + "\n"
-param += "transition probabilities for each coin (respectively): " + str(transition) + "\n"
+param += "transition probabilities for each coin (respectively):\n" + str(transition) + "\n"
 param += "procedure:\n\t1. set initial coin state to one of " + str(len(coins)) + " coins.\n"
 param += "\t2. obtain set of probabilities based on previous coin state. each coin has a unique set of probabilities to transition to another coin. in this sample, the coin state cannot repeat itself.\n"
 param += "\t3. transition to another coin based on this set.\n\t4. perform 10 trials (flips) of the new coin based on its unique bias.\n\t5. repeat."
