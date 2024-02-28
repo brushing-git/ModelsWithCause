@@ -4,7 +4,7 @@ from random_functions import *
 np.random.seed(252)
 
 # Build the data set
-TRSIZE = 1000 # 1 million
+TRSIZE = 10000 # 1 million
 RVL = 10 # size
 
 # number of dice
@@ -18,22 +18,41 @@ biases = rand_arrays_ONE(6, 4)
 consider_n = 4
 
 # probabilities for transition to element x given previous consider_n-length sequence ...
-transition_matrix = np.zeros()
-for i in range(consider_n):
-    transition_matrix[i] = rand_arrays_ONE(dice, dice)
+transition_matrix = rand_arrays_ONE(dice, dice)
 
 training_d = np.zeros((TRSIZE, RVL))
 
 # track previous consider_n-length sequence
 previous_states = np.zeros(consider_n)
 
+ratio = (float) (dice / (consider_n - 1))
+
 for i in range(TRSIZE):
     if i < consider_n:
         dice_state = np.random.choice(dice)
         previous_states[i] = dice_state
     else:
-        arr = transition_matrix[dice_state]
+        arr = np.zeros(consider_n - 1)
+        for j in range(consider_n - 1):
+            arr[j] = transition_matrix[int(previous_states[j])][int(previous_states[j + 1])]
 
+        #
+        arr2 = np.zeros(dice)
+        for j in range(dice):
+            arr2[j] = np.random.choice(arr)
+        sum = np.sum(arr2)
+        if sum == 0: sum == 1
+        for j in range(dice):
+            arr2[j] /= sum
+        #
+        
+        choose_dice = np.random.multinomial(1, arr2, 1)
+        dice_state = int(str(np.where(choose_dice == 1)[0])[1])
+
+        for j in range(consider_n - 1):
+            previous_states[j] = previous_states[j + 1]
+        previous_states[consider_n - 1] = dice_state
+        
 
     # current dice_state computed
     trial = np.random.multinomial(1, biases[dice_state], RVL)
@@ -46,7 +65,11 @@ training_d = training_d.astype(np.single)
 
 # print parameters
 f = open('markov-multi-1-parameters.txt', 'w')
-f.write('')
+param = "number of dice: " +  str(dice) + "\n"
+param += "biases of each die: " + str(biases) + "\n"
+param += "transition probabilities: " + str(transition_matrix) + "\n"
+param += "procedure: see additional documents\n"
+f.write(param)
 f.close()
 
 np.savetxt("markov-multi-1-training.txt", training_d, delimiter="", newline=",", fmt='%d')

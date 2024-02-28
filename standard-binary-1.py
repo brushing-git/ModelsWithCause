@@ -3,7 +3,7 @@ from random_functions import *
 
 np.random.seed(7)
 
-TRSIZE = 1000000 # 1 million
+TRSIZE = 10000 # 1 million
 RVL = 10
 
 coin_biases = rand_array(3)
@@ -20,11 +20,12 @@ training_d = training_d.astype(np.single)
 
 # print parameters
 f = open('standard-binary-1-parameters.txt', 'w')
-f.write("number of coins: %d\n", len(prior))
-f.write("probability distribution of coins (respectively): ", prior, "\n")
-f.write("biases of coins (respectively): ", coin_biases, "\n")
-f.write("procedure:\n")
-f.write("\t1. choose a coin based on probabilities.\n\t2. flip the coin 10 times.\n\t3. repeat")
+param = "number of coins: " + str(len(prior)) + "\n"
+param += "probability distribution of coins (respectively): " + str(prior) + "\n"
+param += "biases of coins (respectively): " +  str(coin_biases) +  "\n"
+param += "procedure:\n"
+param += "\t1. choose a coin based on probabilities.\n\t2. flip the coin 10 times.\n\t3. repeat"
+f.write(param)
 f.close()
 
 np.savetxt("standard-binary-1-training.txt", training_d, delimiter="", newline=",", fmt='%d')

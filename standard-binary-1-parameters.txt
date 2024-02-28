@@ -1,0 +1,7 @@
+number of coins: 3
+probability distribution of coins (respectively): [0.20352802 0.55584276 0.24062922]
+biases of coins (respectively): [0.29624916 0.80906772 0.35025253]
+procedure:
+	1. choose a coin based on probabilities.
+	2. flip the coin 10 times.
+	3. repeat
