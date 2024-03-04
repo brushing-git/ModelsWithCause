@@ -31,11 +31,16 @@ def load_data(fn: str, item_len: int) -> np.ndarray:
     X = np.array([[float(c) for c in data[i:i+10]] for i in range(0, len(data), item_len)])
     return X
 
-def build_trte_dataloader(X: np.ndarray, te_size=0.2) -> tuple:
+def build_datasets(X: np.ndarray, te_size=0.2) -> tuple:
     X_train, X_test = train_test_split(X,test_size=te_size)
 
     tr_data = ExchangeData(X_train)
     te_data = ExchangeData(X_test)
+
+    return tr_data, te_data
+
+def build_trte_dataloader(X: np.ndarray, te_size=0.2) -> tuple:
+    tr_data, te_data = build_datasets(X, te_size)
 
     tr_loader = DataLoader(tr_data, batch_size=64, shuffle=True)
     te_loader = DataLoader(te_data, batch_size=64, shuffle=True)
