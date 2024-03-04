@@ -17,44 +17,35 @@ biases = rand_arrays_ONE(6, 4)
 # "consider the previous n elements to calculate next roll"
 consider_n = 4
 
-# probabilities for transition to element x given previous consider_n-length sequence ...
-transition_matrix = rand_arrays_ONE(dice, dice)
+# if there are x dice states, then there are x^2 unique transitions
+# for a sequence of length consider_n, there can be consider_n - 1 transitions
+# 
+
+# generate array of possible sequences of length consider_n for each starting dice state
 
 training_d = np.zeros((TRSIZE, RVL))
 
 # track previous consider_n-length sequence
 previous_states = np.zeros(consider_n)
 
-ratio = (float) (dice / (consider_n - 1))
-
 for i in range(TRSIZE):
     if i < consider_n:
         dice_state = np.random.choice(dice)
         previous_states[i] = dice_state
     else:
-        arr = np.zeros(consider_n - 1)
-        for j in range(consider_n - 1):
-            arr[j] = transition_matrix[int(previous_states[j])][int(previous_states[j + 1])]
-
-        #
-        arr2 = np.zeros(dice)
-        for j in range(dice):
-            arr2[j] = np.random.choice(arr)
-        sum = np.sum(arr2)
-        if sum == 0: sum == 1
-        for j in range(dice):
-            arr2[j] /= sum
-        #
-        
-        choose_dice = np.random.multinomial(1, arr2, 1)
-        dice_state = int(str(np.where(choose_dice == 1)[0])[1])
-
+        transition_count = 0
+        for j in range(1, consider_n):
+            if previous_states[j - 1] != previous_states[j]:
+                # count transitions
+                transition_count += 1
+        current_state = previous_states[0]
+        for count in range(transition_count):
+            current_state = (current_state + count) % dice
+        dice_state = int(current_state)
         for j in range(consider_n - 1):
             previous_states[j] = previous_states[j + 1]
         previous_states[consider_n - 1] = dice_state
-        
-
-    # current dice_state computed
+    # current dice_state computed, now roll RVL times
     trial = np.random.multinomial(1, biases[dice_state], RVL)
     index = np.zeros(RVL)
     for j in range(RVL):
@@ -64,15 +55,15 @@ for i in range(TRSIZE):
 training_d = training_d.astype(np.single)
 
 # print parameters
-f = open('markov-multi-1-parameters.txt', 'w')
+f = open('V1multi-exchange-1-parameters.txt', 'w')
 param = "number of dice: " +  str(dice) + "\n"
 param += "biases of each die:\n" + str(biases) + "\n"
-param += "transition probabilities:\n" + str(transition_matrix) + "\n"
-param += "procedure: see additional documents\n"
+param += "procedure:\n\t1. randomly choose the first " + str(consider_n) + " dice states.\n\t2. count the transitions between different states.\n\t"
+param += "3. use this transition count to cycle through the " + str(dice) + " until the count is exhausted.\n\t4. roll the chosen die " + str(RVL) + " times.\n\t5. repeat."
 f.write(param)
 f.close()
 
-np.savetxt("markov-multi-1-training.txt", training_d, delimiter="", newline=",", fmt='%d')
+np.savetxt("V1multi-exchange-1-training.txt", training_d, delimiter="", newline=",", fmt='%d')
 
 from humanReadable import *
-translateCSV(training_d, 1, "markov-multi-data-readable.cvs")
+translateCSV(training_d, 1, "V1multi-exchange-data-readable.cvs")

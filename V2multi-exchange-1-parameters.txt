@@ -1,0 +1,18 @@
+number of dice: 4
+biases of each die:
+[[0.09681609 0.26440842 0.11446473 0.25798391 0.18345238 0.08287447]
+ [0.09681609 0.26440842 0.11446473 0.25798391 0.18345238 0.08287447]
+ [0.09681609 0.26440842 0.11446473 0.25798391 0.18345238 0.08287447]
+ [0.09681609 0.26440842 0.11446473 0.25798391 0.18345238 0.08287447]]
+transition probability matrix:
+[[0.13196079 0.36038994 0.15601597 0.3516333 ]
+ [0.13196079 0.36038994 0.15601597 0.3516333 ]
+ [0.13196079 0.36038994 0.15601597 0.3516333 ]
+ [0.13196079 0.36038994 0.15601597 0.3516333 ]]
+procedure:
+	1. randomly choose the first 4 dice states.
+	2. add the unique probabilities from the transition matrix based on the transition count (i.e. a transition from x to y corresponds to a value at transition_matrix[x][y]
+	3. multiply this sum by the ratio between 4 and 4.
+	4. round this value to the nearest whole number; this is the dice state.
+	5. roll the chosen die 10 times.
+	6. repeat.
