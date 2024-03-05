@@ -1,5 +1,4 @@
 import torch
-import numpy as np
 
 def set_device():
     if torch.backends.mps.is_built() and torch.backends.mps.is_available():

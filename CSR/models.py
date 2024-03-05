@@ -1,13 +1,14 @@
 import torch
 import torch.nn as nn
-import utils as ut
+import CSR.utils as ut
 from torch.distributions import Categorical
-from moe import MoEDecoderLayer, MoEDecoder
+from torch.nn.functional import softmax
+from CSR.moe import MoEDecoderLayer, MoEDecoder
 from math import log, sqrt
 from tqdm import tqdm
 
 class NADE(nn.Module):
-    def __init__(self, in_dim, hidden_dim, cat=2, optimizer=torch.optim.Adam) -> None:
+    def __init__(self, in_dim: int, hidden_dim: int, cat=2, optimizer=torch.optim.Adam) -> None:
         super(NADE, self).__init__()
         self.D = in_dim
         self.H = hidden_dim
@@ -87,14 +88,14 @@ class NADE(nn.Module):
 
         return loss.item()
     
-    def _eval(self, te_loader, loss_fn) -> float:
+    def _eval(self, te_loader, loss_fn) -> tuple:
         val_loss = []
         self.eval()
         
         for x, y in iter(te_loader):
             x, y = x.to(self.device), y.to(self.device)
 
-            y_hat, p_hat = self.forward(x)
+            y_hat, _ = self.forward(x)
             loss = self._compute_loss(y_hat, y, loss_fn)
             loss = loss.detach()
             val_loss.append(loss.item())
@@ -108,6 +109,10 @@ class NADE(nn.Module):
         _, _, x_hat = self._estimate_logits(a_d, x=None, sample=True)
         return x_hat.tolist()
     
+    def estimate_prob(self, x, y) -> list:
+        _, p_hat = self.forward(x)
+        return p_hat.tolist()
+    
     def parameter_count(self):
         total_params = sum(p.numel() for p in self.parameters())
         print(f"Number of parameters: {total_params}")    
@@ -118,7 +123,7 @@ class NADE(nn.Module):
         scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=step_size, gamma=0.5)
         loss_fn = nn.CrossEntropyLoss()
 
-        hist = {'tr_loss': [], 'te_loss': [], 'current_lr': []}
+        hist = {'tr_loss': [], 'te_loss': [], 'te_auc': [], 'current_lr': []}
 
         for step in range(epochs):
             self.train()
@@ -135,9 +140,10 @@ class NADE(nn.Module):
             current_lr = scheduler.get_last_lr()[0]
 
             s = ('Metrics for epoch {} are:\n tr_loss: {}, ' 
-              'te_loss: {}, current_lr: {}').format(step,
+              'te_loss: {}, te_auc: {}, current_lr: {}').format(step,
                                                         tr_avg_loss,
                                                         te_loss,
+                                                        0.0,
                                                         current_lr)
             print(s)
 
@@ -177,7 +183,7 @@ class PositionalEncoding(nn.Module):
 class Transformer(nn.Module):
     def __init__(self, n_tokens: int, dim_model: int, n_heads: int, 
                  n_encoder_lyrs: int, n_decoder_lyrs: int, dropout_p: float,
-                 optimizer=torch.optim.Adam, SOS_token=8, EOS_token=9) -> None:
+                 ffn=2048, optimizer=torch.optim.Adam, SOS_token=6, EOS_token=7) -> None:
         super().__init__()
 
         self.dim_model = dim_model
@@ -198,6 +204,7 @@ class Transformer(nn.Module):
             nhead=n_heads,
             num_encoder_layers=n_encoder_lyrs,
             num_decoder_layers=n_decoder_lyrs,
+            dim_feedforward=ffn,
             dropout=dropout_p
         )
         self.out = nn.Linear(dim_model, n_tokens)
@@ -259,7 +266,7 @@ class Transformer(nn.Module):
 
         return loss.item()
     
-    def _eval(self, te_loader, loss_fn) -> float:
+    def _eval(self, te_loader, loss_fn) -> tuple:
         val_loss = []
         self.eval()
 
@@ -281,6 +288,7 @@ class Transformer(nn.Module):
             val_loss.append(loss.item())
         
         te_loss = sum(val_loss) / len(val_loss)
+
         return te_loss
     
     def sample(self, x, max_length: int) -> list:
@@ -341,7 +349,7 @@ class Transformer(nn.Module):
         scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=step_size, gamma=0.5)
         loss_fn = nn.CrossEntropyLoss()
 
-        hist = {'tr_loss': [], 'te_loss': [], 'current_lr': []}
+        hist = {'tr_loss': [], 'te_loss': [], 'te_auc': [], 'current_lr': []}
 
         for step in range(epochs):
             self.train()
@@ -359,9 +367,10 @@ class Transformer(nn.Module):
             current_lr = scheduler.get_last_lr()[0]
 
             s = ('Metrics for epoch {} are:\n tr_loss: {}, ' 
-              'te_loss: {}, current_lr: {}').format(step,
+              'te_loss: {}, te_auc: {}, current_lr: {}').format(step,
                                                         tr_avg_loss,
                                                         te_loss,
+                                                        0.0,
                                                         current_lr)
             print(s)
 
@@ -375,14 +384,17 @@ class Transformer(nn.Module):
 
 class DecoderTransformer(Transformer):
     def __init__(self, n_tokens: int, dim_model: int, n_heads: int, 
-                 n_decoder_lyrs: int, dropout_p: float,
-                 optimizer=torch.optim.Adam, SOS_token=8, EOS_token=9) -> None:
+                 n_decoder_lyrs: int, dropout_p: float, ffn=2048,
+                 optimizer=torch.optim.Adam, SOS_token=6, EOS_token=7) -> None:
         super().__init__(n_tokens=n_tokens, dim_model=dim_model, n_heads=n_heads,
                         n_encoder_lyrs=1, n_decoder_lyrs=n_decoder_lyrs,
-                        dropout_p=dropout_p, optimizer=optimizer, SOS_token=SOS_token,
-                        EOS_token=EOS_token)
+                        dropout_p=dropout_p, optimizer=optimizer, ffn=ffn,
+                        SOS_token=SOS_token, EOS_token=EOS_token)
         
-        decoder_lyr = nn.TransformerDecoderLayer(d_model=dim_model, nhead=n_heads, dropout=dropout_p)
+        decoder_lyr = nn.TransformerDecoderLayer(d_model=dim_model, 
+                                                 nhead=n_heads, 
+                                                 dim_feedforward=ffn, 
+                                                 dropout=dropout_p)
         decoder_norm = nn.LayerNorm(dim_model)
         self.decoder = nn.TransformerDecoder(decoder_layer=decoder_lyr,
                                                   num_layers=n_decoder_lyrs,
@@ -410,15 +422,15 @@ class DecoderTransformer(Transformer):
 class MoEDecoderTransformer(DecoderTransformer):
     def __init__(self, n_tokens: int, dim_model: int, n_heads: int, 
                  n_decoder_lyrs: int, dropout_p: float, n_experts: int, 
-                 top_k=2, dim_feedforward=2048, optimizer=torch.optim.Adam, 
-                 SOS_token=8, EOS_token=9) -> None:
+                 top_k: int, ffn=2048, optimizer=torch.optim.Adam, 
+                 SOS_token=6, EOS_token=7) -> None:
         super().__init__(n_tokens=n_tokens, dim_model=dim_model, n_heads=n_heads,
-                        n_decoder_lyrs=n_decoder_lyrs, dropout_p=dropout_p, 
+                        n_decoder_lyrs=n_decoder_lyrs, dropout_p=dropout_p, ffn=ffn, 
                         optimizer=optimizer, SOS_token=SOS_token, EOS_token=EOS_token)
         
         decoder_lyr = MoEDecoderLayer(dim_model=dim_model, n_heads=n_heads, 
                                       n_experts=n_experts, top_k=top_k, dropout=dropout_p,
-                                      ffn=dim_feedforward)
+                                      ffn=ffn)
         decoder_norm = nn.LayerNorm(dim_model)
         self.decoder = MoEDecoder(decoder_layer=decoder_lyr,
                                   num_layers=n_decoder_lyrs,
