@@ -6,7 +6,6 @@ import csv
 # dataSet - numpy array, the data set to translate 
 # indicator - int, whether it is coin flips (0) or dice rolls (1),
 # output - string, name of file outputted, must include ".csv" in given input
-# bias - double/float, the given bias of the coin/dice to be used in the header
 def translateCSV(dataSet, indicator, output):
     arr = []
     header = ""

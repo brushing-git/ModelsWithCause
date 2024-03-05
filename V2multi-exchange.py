@@ -61,4 +61,4 @@ f.close()
 np.savetxt("V2multi-exchange-1-training.txt", training_d, delimiter="", newline=",", fmt='%d')
 
 from humanReadable import *
-translateCSV(training_d, 1, "V2multi-exchange-data-readable.cvs")
+translateCSV(training_d, 1, "V2multi-exchange-data-readable.csv")
