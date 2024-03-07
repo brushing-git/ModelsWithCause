@@ -28,7 +28,7 @@ for i in range(TRSIZE):
 training_d = training_d.astype(np.single)
 
 # print parameters
-f = open('markov-binary-1-parameters.txt', 'w')
+f = open('DATASETS/markov-binary-1-parameters.txt', 'w')
 param = "number of coins:" + str(len(coins)) + "\n"
 param += "biases of coins (respectively): " + str(biases) + "\n"
 param += "transition probabilities for each coin (respectively):\n" + str(transition) + "\n"
@@ -38,7 +38,7 @@ param += "\t3. transition to another coin based on this set.\n\t4. perform 10 tr
 f.write(param)
 f.close()
 
-np.savetxt("markov-binary-1-training.txt", training_d, delimiter="", newline=",", fmt='%d')
+np.savetxt("DATASETS/markov-binary-1-training.txt", training_d, delimiter="", newline=",", fmt='%d')
 
 from humanReadable import *
-translateCSV(training_d, 0, "markov-binary-data-readable.csv")
+translateCSV(training_d, 0, "DATASETS/markov-binary-data-readable.csv")
