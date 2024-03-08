@@ -64,7 +64,7 @@ f.close()
 np.savetxt("DATASETS/markov_chain-dice-small-training.txt", dataset, delimiter="", newline=",", fmt='%d')
 
 from humanReadable import *
-translateCSV(dataset, 0, "DATASETS/markov_chain-dice-small-readable.csv")
+translateCSV(dataset, 1, "DATASETS/markov_chain-dice-small-readable.csv")
 
 # generate dataset with parameters:
 rvs = 2
@@ -111,7 +111,7 @@ f.close()
 np.savetxt("DATASETS/markov_chain-dice-medium-training.txt", dataset, delimiter="", newline=",", fmt='%d')
 
 from humanReadable import *
-translateCSV(dataset, 0, "DATASETS/markov_chain-dice-medium-readable.csv")
+translateCSV(dataset, 1, "DATASETS/markov_chain-dice-medium-readable.csv")
 
 # generate dataset with parameters:
 rvs = 2
@@ -158,7 +158,7 @@ f.close()
 np.savetxt("DATASETS/markov_chain-dice-large-training.txt", dataset, delimiter="", newline=",", fmt='%d')
 
 from humanReadable import *
-translateCSV(dataset, 0, "DATASETS/markov_chain-dice-large-readable.csv")
+translateCSV(dataset, 1, "DATASETS/markov_chain-dice-large-readable.csv")
 
 # generate dataset with parameters:
 rvs = 2

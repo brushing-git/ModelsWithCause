@@ -1,0 +1,8 @@
+number of possible states:2
+training size: 50000
+sequence length: 500
+procedure:
+	1. generate 2 2x2 recurrent matrix of floats between (but exlcuding) 0 and 1.
+	2. select a starting matrix based on random distrubution of the possible states.
+	3. using this matrix, generate a sample in which sequences with the same leading state and transition counts are generated in the same fashion.
+	4. repeat.

@@ -3,7 +3,7 @@ from random_functions import *
 
 np.random.seed(9)
 
-TRSIZE = 10000 # 1ten thousand
+TRSIZE = 50000 # fifty thousand
 RVL = 10
 
 die_biases = rand_arrays_ONE(6, 6)

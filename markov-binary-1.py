@@ -3,7 +3,7 @@ import numpy as np
 np.random.seed(69)
 
 # Build the data set
-TRSIZE = 10000 # 1 million
+TRSIZE = 50000 # fifty thousand
 RVL = 10 # size (~number of trials)
 
 coins = np.array([0, 1, 2, 3])

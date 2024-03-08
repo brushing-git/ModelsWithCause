@@ -3,7 +3,7 @@ from random_functions import *
 
 np.random.seed(7)
 
-TRSIZE = 10000 # 1 million
+TRSIZE = 50000 # fifty thousand
 RVL = 10
 
 coin_biases = rand_array(3)

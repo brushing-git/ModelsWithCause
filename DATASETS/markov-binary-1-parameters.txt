@@ -1,0 +1,13 @@
+number of coins:4
+biases of coins (respectively): [0.35 0.5  0.7  0.55]
+transition probabilities for each coin (respectively):
+[[0.   0.2  0.3  0.5 ]
+ [0.4  0.   0.3  0.3 ]
+ [0.2  0.35 0.   0.45]
+ [0.15 0.25 0.6  0.  ]]
+procedure:
+	1. set initial coin state to one of 4 coins.
+	2. obtain set of probabilities based on previous coin state. each coin has a unique set of probabilities to transition to another coin. in this sample, the coin state cannot repeat itself.
+	3. transition to another coin based on this set.
+	4. perform 10 trials (flips) of the new coin based on its unique bias.
+	5. repeat.

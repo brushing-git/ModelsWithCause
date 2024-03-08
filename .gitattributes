@@ -1,0 +1,17 @@
+markov_chain-new-dice-large.txt filter=lfs diff=lfs merge=lfs -text
+markov_chain-new-coin-large.txt filter=lfs diff=lfs merge=lfs -text
+markov_chain-new-dice-large-readable.csv filter=lfs diff=lfs merge=lfs -text
+markov_chain-new-coin-large-readable.csv filter=lfs diff=lfs merge=lfs -text
+markov_chain-new-dice-large-readable.psd filter=lfs diff=lfs merge=lfs -text
+markov_chain-new-coin-large-readable.psd filter=lfs diff=lfs merge=lfs -text
+markov_chain-new-coin-large.psd filter=lfs diff=lfs merge=lfs -text
+markov_chain-new-dice-large.psd filter=lfs diff=lfs merge=lfs -text
+markov_chain-dice-large.psd filter=lfs diff=lfs merge=lfs -text
+markov_chain-coin-large.psd filter=lfs diff=lfs merge=lfs -text
+markov_chain--dice-large-readable.psd filter=lfs diff=lfs merge=lfs -text
+markov_chain-coin-large-readable.psd filter=lfs diff=lfs merge=lfs -text
+markov_chain-dice-large-readable.psd filter=lfs diff=lfs merge=lfs -text
+DATASETS/markov_chain-dice-large-readable.csv filter=lfs diff=lfs merge=lfs -text
+DATASETS/markov_chain-coin-large-readable.csv filter=lfs diff=lfs merge=lfs -text
+DATASETS/markov_chain-dice-large-readable.psd filter=lfs diff=lfs merge=lfs -text
+DATASETS/markov_chain-coin-large-readable.psd filter=lfs diff=lfs merge=lfs -text
