@@ -72,7 +72,7 @@ def grid_search(model,
             # Check if we are doing grid search on lr
             if lr:
                 # Do kfold cross-validation
-                print(f'Testing parameters {r} and {c} in grid item {(i*len(params1))+(j+1)} of {len(params1)*len(params2)}')
+                print(f'Testing parameters {r} and {c} in grid item {(i*len(params2))+(j+1)} of {len(params1)*len(params2)}')
                 print('------')
                 model_params[param1_name] = r
                 model_params[param2_name] = c
@@ -80,7 +80,7 @@ def grid_search(model,
                                                 epochs, lr, kfolds, batch_size)
             else:
                 # Do kfold cross-validation
-                print(f'Testing parameters {r} and {c} in grid item {(i*len(params1))+(j+1)} of {len(params1)*len(params2)}')
+                print(f'Testing parameters {r} and {c} in grid item {(i*len(params2))+(j+1)} of {len(params1)*len(params2)}')
                 print('------')
                 model_params[param1_name] = r
                 _, te_loss = kfold_cross_val(model, train_data, model_params, 
