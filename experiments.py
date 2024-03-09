@@ -10,15 +10,15 @@ torch.manual_seed(0)
 np.random.seed(0)
 
 # Constants to be changed based on dataset
-FN = 'exchange-dataset-1-training.txt'
+FN = 'markov_chain-dice-medium-training.txt'
 DATA_NAME = 'ME'
-TEXTLENGTH = 10
+TEXTLENGTH = 100
 CAT = 6
 
 # Experimental parameters
 LEARNING_RATES = [10**(-(i+1)) for i in range(5)]
 HIDDEN_DIMS = [2**(i+3) for i in range(10)]
-N_HEADS = [i for i in range(2, 11, 1)]
+N_HEADS = [2, 5, 10]
 N_ENCODER_LYRS = [i for i in range(2, 22, 2)]
 N_DENCODER_LYRS = [i for i in range(2, 22, 2)]
 DROPOUT_P = [i*0.1 for i in range(6)]
@@ -132,7 +132,7 @@ def main():
             net = Transformer
             params = {'n_tokens': CAT+2, 
                   'dim_model': TEXTLENGTH,
-                  'n_heads': 8,
+                  'n_heads': 5,
                   'n_encoder_lyrs': 6,
                   'n_decoder_lyrs': 6,
                   'dropout_p': 0.1,
@@ -141,7 +141,7 @@ def main():
             net = DecoderTransformer
             params = {'n_tokens': CAT+2, 
                   'dim_model': TEXTLENGTH,
-                  'n_heads': 8,
+                  'n_heads': 5,
                   'n_decoder_lyrs': 6,
                   'dropout_p': 0.1,
                   'ffn': 2048}
@@ -149,7 +149,7 @@ def main():
             net = MoEDecoderTransformer
             params = {'n_tokens': CAT+2, 
                   'dim_model': TEXTLENGTH,
-                  'n_heads': 8,
+                  'n_heads': 5,
                   'n_decoder_lyrs': 6,
                   'dropout_p': 0.1,
                   'n_experts': 2,
