@@ -27,8 +27,10 @@ class ExchangeData(Dataset):
 def load_data(fn: str, item_len: int) -> np.ndarray:
     data = np.loadtxt(fn, dtype='str')
     data = data.item()
+    # Strip any commas
+    data = data.replace(",", "")
 
-    X = np.array([[float(c) for c in data[i:i+10]] for i in range(0, len(data), item_len)])
+    X = np.array([[float(c) for c in data[i:i+item_len]] for i in range(0, len(data), item_len)])
     return X
 
 def build_datasets(X: np.ndarray, te_size=0.2) -> tuple:
