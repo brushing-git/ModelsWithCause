@@ -19,11 +19,11 @@ CAT = 6
 LEARNING_RATES = [10**(-(i+1)) for i in range(5)]
 HIDDEN_DIMS = [2**(i+3) for i in range(10)]
 N_HEADS = [2, 5, 10]
-N_ENCODER_LYRS = [i for i in range(2, 22, 2)]
-N_DENCODER_LYRS = [i for i in range(2, 22, 2)]
+N_ENCODER_LYRS = [i for i in range(2, 14, 2)]
+N_DENCODER_LYRS = [i for i in range(2, 14, 2)]
 DROPOUT_P = [i*0.1 for i in range(6)]
 FFN = [2**(i+3) for i in range(10)]
-N_EXPERTS = [i for i in range(2, 10, 1)]
+N_EXPERTS = [i for i in range(2, 7, 1)]
 TOP_K = [i for i in range(2, 5, 1)]
 
 EXP_VALUES = {
