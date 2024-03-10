@@ -99,8 +99,8 @@ def plot_grid(df: pd.DataFrame, param1_name: str, param2_name: str, fn: str) -> 
 
     ax.set_xticks(np.arange(len(cols)), labels=cols)
     ax.set_yticks(np.arange(len(rows)), labels=rows)
-    ax.set_xlabel(param1_name)
-    ax.set_ylabel(param2_name)
+    ax.set_xlabel(param2_name)
+    ax.set_ylabel(param1_name)
 
     cbar = ax.figure.colorbar(im, ax=ax)
     cbar.ax.set_ylabel('Test Loss', rotation=-90, va="bottom")
