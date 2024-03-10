@@ -107,7 +107,6 @@ def plot_grid(df: pd.DataFrame, param1_name: str, param2_name: str, fn: str) -> 
     ax.set_title(f'Test Loss on Grid Search for {param1_name} and {param2_name}')
 
     fig.tight_layout()
-    plt.show()
 
     print('Saving the figure.')
     fig.savefig(fn + '.pdf', dpi=900, format='pdf')
