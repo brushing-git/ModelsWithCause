@@ -1,4 +1,6 @@
 number of dice: 6
+sequence length: 100
+dataset size: 10000
 probability distribution of dice (respectively): [0.09681609 0.26440842 0.11446473 0.25798391 0.18345238 0.08287447]
 biases of each die:
 [[0.09681609 0.26440842 0.11446473 0.25798391 0.18345238 0.08287447]
