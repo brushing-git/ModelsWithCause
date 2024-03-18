@@ -3,8 +3,8 @@ from random_functions import *
 
 np.random.seed(9)
 
-TRSIZE = 50000 # fifty thousand
-RVL = 10
+TRSIZE = 10000 # ten thousand
+RVL = 100
 
 die_biases = rand_arrays_ONE(6, 6)
 prior = rand_array_ONE(6)
@@ -23,7 +23,7 @@ for i in range(TRSIZE):
 training_d = training_d.astype(np.single)
 
 # print parameters
-f = open('DATASETS/standard-multi-1-parameters.txt', 'w')
+f = open('cross_val/standard-multi-1-parameters.txt', 'w')
 param = "number of dice: " + str(len(prior)) + "\n"
 param += "probability distribution of dice (respectively): " + str(prior) + "\n"
 param += "biases of each die:\n" + str(die_biases) + "\n"
@@ -32,7 +32,7 @@ param += "\t1. choose die based on probabilities\n\t2. roll die 10 times\n\t3. r
 f.write(param)
 f.close()
 
-np.savetxt("DATASETS/standard-multi-1-training.txt", training_d, delimiter="", newline=",", fmt='%d')
+np.savetxt("cross_val/standard-multi-1-training.txt", training_d, delimiter="", newline=",", fmt='%d')
 
 from humanReadable import *
-translateCSV(training_d, 1, "DATASETS/standard-multi-data-readable.csv")
+translateCSV(training_d, 1, "cross_val/standard-multi-data-readable.csv")

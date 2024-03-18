@@ -45,12 +45,12 @@ def build_markov_dataset(rvs: int, tr_size: int, seq_len: int) -> np.ndarray:
 ########################## SMALL SEQUENCE ##########################
 # generate dataset with parameters:
 rvs = 6
-tr_size = 50000 # fifty thousand
-seq_len = 10
+tr_size = 10000 # ten thousand
+seq_len = 100
 dataset = build_markov_dataset(rvs, tr_size, seq_len)
 
 # print parameters
-f = open('DATASETS/markov_chain-dice-small-parameters.txt', 'w')
+f = open('cross_val/markov_chain-dice-small-parameters.txt', 'w')
 param = "number of possible states:" + str(rvs) + "\n"
 param += "training size: " + str(tr_size) + "\n"
 param += "sequence length: " + str(seq_len) + "\n"
@@ -61,11 +61,12 @@ param += "4. repeat."
 f.write(param)
 f.close()
 
-np.savetxt("DATASETS/markov_chain-dice-small-training.txt", dataset, delimiter="", newline=",", fmt='%d')
+np.savetxt("cross_val/markov_chain-dice-small-training.txt", dataset, delimiter="", newline=",", fmt='%d')
 
 from humanReadable import *
-translateCSV(dataset, 1, "DATASETS/markov_chain-dice-small-readable.csv")
+translateCSV(dataset, 1, "cross_val/markov_chain-dice-small-readable.csv")
 
+""" REMOVE TRIPLE DOUBLE QUOTE TO UNCOMMENT
 # generate dataset with parameters:
 rvs = 2
 tr_size = 50000 # fifty thousand
@@ -182,3 +183,4 @@ np.savetxt("DATASETS/markov_chain-coin-large-training.txt", dataset, delimiter="
 
 from humanReadable import *
 translateCSV(dataset, 0, "DATASETS/markov_chain-coin-large-readable.csv")
+""" # REMOVE TRIPLE DOUBLE QUOTE TO UNCOMMENT
