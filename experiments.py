@@ -10,7 +10,7 @@ torch.manual_seed(0)
 np.random.seed(0)
 
 # Constants to be changed based on dataset
-FN = 'markov_chain-dice-medium-training.txt'
+FN = 'standard-multi-1-training.txt'
 DATA_NAME = 'ME'
 TEXTLENGTH = 100
 CAT = 6
