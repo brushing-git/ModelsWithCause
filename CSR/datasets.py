@@ -41,10 +41,10 @@ def build_datasets(X: np.ndarray, te_size=0.2) -> tuple:
 
     return tr_data, te_data
 
-def build_trte_dataloader(X: np.ndarray, te_size=0.2) -> tuple:
+def build_trte_dataloader(X: np.ndarray, te_size=0.2, batch_size: int=64) -> tuple:
     tr_data, te_data = build_datasets(X, te_size)
 
-    tr_loader = DataLoader(tr_data, batch_size=64, shuffle=True)
-    te_loader = DataLoader(te_data, batch_size=64, shuffle=True)
+    tr_loader = DataLoader(tr_data, batch_size=batch_size, shuffle=True)
+    te_loader = DataLoader(te_data, batch_size=batch_size, shuffle=True)
 
     return tr_loader, te_loader

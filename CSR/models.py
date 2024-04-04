@@ -3,6 +3,7 @@ import torch.nn as nn
 import CSR.utils as ut
 from torch.distributions import Categorical
 from torch.nn.functional import softmax
+from torch.optim.lr_scheduler import CosineAnnealingLR
 from CSR.moe import MoEDecoderLayer, MoEDecoder
 from math import log, sqrt
 from tqdm import tqdm
@@ -88,7 +89,7 @@ class NADE(nn.Module):
 
         return loss.item()
     
-    def _eval(self, te_loader, loss_fn) -> tuple:
+    def _eval(self, te_loader, loss_fn) -> float:
         val_loss = []
         self.eval()
         
@@ -266,7 +267,7 @@ class Transformer(nn.Module):
 
         return loss.item()
     
-    def _eval(self, te_loader, loss_fn) -> tuple:
+    def _eval(self, te_loader, loss_fn) -> float:
         val_loss = []
         self.eval()
 
@@ -346,7 +347,7 @@ class Transformer(nn.Module):
     def fit(self, tr_loader, te_loader, epochs: int, lr: float, step_size=50) -> dict:
         self.to(self.device)
         optimizer = self.optimizer(self.parameters(), lr=lr)
-        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=step_size, gamma=0.5)
+        scheduler = CosineAnnealingLR(optimizer=optimizer, T_max=epochs)
         loss_fn = nn.CrossEntropyLoss()
 
         hist = {'tr_loss': [], 'te_loss': [], 'te_auc': [], 'current_lr': []}
@@ -394,7 +395,8 @@ class DecoderTransformer(Transformer):
         decoder_lyr = nn.TransformerDecoderLayer(d_model=dim_model, 
                                                  nhead=n_heads, 
                                                  dim_feedforward=ffn, 
-                                                 dropout=dropout_p)
+                                                 dropout=dropout_p
+                                                )
         decoder_norm = nn.LayerNorm(dim_model)
         self.decoder = nn.TransformerDecoder(decoder_layer=decoder_lyr,
                                                   num_layers=n_decoder_lyrs,
