@@ -14,6 +14,8 @@ FN = 'markov_chain-dice-medium-training.txt'
 DATA_NAME = 'ME'
 TEXTLENGTH = 100
 CAT = 6
+SOS_TOKEN = 6 # This needs to be set depending on the type of dataset
+EOS_TOKEN = 7 # This needs to be set depending on the type of dataset
 BATCH_SIZE = 250
 N_HEADS = 10
 DECODER_LYRS = 4
@@ -43,8 +45,11 @@ def main():
                                 n_heads=N_HEADS, 
                                 n_decoder_lyrs=DECODER_LYRS, 
                                 dropout_p=DROPOUT, 
-                                n_experts=N_EXPERTS, 
-                                ffn=FFN)
+                                n_experts=N_EXPERTS,
+                                top_k=2, 
+                                ffn=FFN,
+                                SOS_token=SOS_TOKEN,
+                                EOS_token=EOS_TOKEN)
     print('Training the model.')
     net.fit(tr_loader=tr_load, te_loader=te_load, epochs=EPOCHS, lr=LR)
 
