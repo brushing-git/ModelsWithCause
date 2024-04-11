@@ -1,4 +1,5 @@
 import numpy as np
+from tqdm import tqdm
 
 def generate_recurrent_matrix(n: int) -> np.ndarray:
     A = np.zeros((n,n))
@@ -32,7 +33,7 @@ def build_markov_dataset(rvs: int, tr_size: int, seq_len: int) -> np.ndarray:
 
     # Generate samples
     data = []
-    for _ in range(tr_size):
+    for _ in tqdm(range(tr_size)):
         start = np.random.choice(rvs, p=prior)
         mat = markov_mats[start]
         sample = generate_sample(start=start, mat=mat, seq_len=seq_len-1)
