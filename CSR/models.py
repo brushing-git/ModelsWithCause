@@ -271,7 +271,7 @@ class Transformer(nn.Module):
         val_loss = []
         self.eval()
 
-        for x, y in iter(te_loader):
+        for x, y in tqdm(te_loader):
             x, y = self._append_SOS_EOS(x), self._append_SOS_EOS(y) # append the SOS and EOS tokens
             x, y = x.to(self.device), y.to(self.device)
 
