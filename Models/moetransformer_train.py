@@ -31,21 +31,25 @@ def main():
     os.makedirs(new_path, exist_ok=True)
 
     # Load the data
+    print('Loading the data.')
     dataset = load_data(FN, TEXTLENGTH)
     tr_load, te_load = build_trte_dataloader(dataset, te_size=0.2, batch_size=BATCH_SIZE)
     final_test_load = te_load
 
     # Build the model
-    net = MoEDecoderTransformer(n_tokens=CAT, 
+    print('Building the model.')
+    net = MoEDecoderTransformer(n_tokens=CAT+2, 
                                 dim_model=TEXTLENGTH, 
                                 n_heads=N_HEADS, 
                                 n_decoder_lyrs=DECODER_LYRS, 
                                 dropout_p=DROPOUT, 
                                 n_experts=N_EXPERTS, 
                                 ffn=FFN)
+    print('Training the model.')
     net.fit(tr_loader=tr_load, te_loader=te_load, epochs=EPOCHS, lr=LR)
 
     # Save the model
+    print('Saving the model.')
     model_save_path = os.path.join(new_path, f'MoEDecoderTransformer_{N_HEADS}-{DECODER_LYRS}-{N_EXPERTS}-{FFN}.pt')
     torch.save(net.state_dict(), model_save_path)
 
