@@ -31,7 +31,6 @@ def load_data(fn: str, item_len: int) -> np.ndarray:
 
     # Split into chunks of specified length and convert to float
     X = np.array([[float(c) for c in data[i:i+item_len]] for i in range(0, len(data), item_len)])
-    print(X)
     return X
 
 def build_datasets(X: np.ndarray, te_size=0.2) -> tuple:
