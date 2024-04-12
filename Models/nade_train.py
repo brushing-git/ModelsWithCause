@@ -17,7 +17,7 @@ CAT = 6
 HIDDEN_DIM = 16
 LR = 0.0001
 EPOCHS = 250
-BATCH_SIZE = 50
+BATCH_SIZE = 100
 
 def main():
     # Create directory and 
