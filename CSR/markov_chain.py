@@ -1,5 +1,6 @@
 import numpy as np
 from tqdm import tqdm
+from multiprocessing import Pool
 
 def generate_recurrent_matrix(n: int) -> np.ndarray:
     A = np.zeros((n,n))
@@ -42,3 +43,34 @@ def build_markov_dataset(rvs: int, tr_size: int, seq_len: int) -> np.ndarray:
     data = np.array(data)
 
     return data
+
+def sample_worker(args):
+    rvs, markov_mats, prior, seq_len = args
+    start = np.random.choice(rvs, p=prior)
+    mat = markov_mats[start]
+    return generate_sample(start=start, mat=mat, seq_len=seq_len-1)
+
+def build_markov_big_dataset(rvs: int, tr_size: int, seq_len: int, num_processes=8) -> np.ndarray:
+    # Build the transition matrices
+    markov_mats = []
+    for _ in range(rvs):
+        mat = generate_recurrent_matrix(rvs)
+        markov_mats.append(mat)
+    
+    # Generate the prior
+    prior = np.random.rand(rvs)
+    prior = prior / prior.sum()
+
+    # Prepare tuple of arguments for each process
+    pool_args = [(rvs, markov_mats, prior, seq_len) for _ in range(tr_size)]
+
+    # Create a pool of processes
+    with Pool(processes=num_processes) as pool:
+        data = list(tqdm(pool.imap(sample_worker, pool_args), total=tr_size))
+    
+    data = np.array(data)
+
+    return data
+
+if __name__ == '__main__':
+    print('Do not run this.')
