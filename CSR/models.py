@@ -87,9 +87,6 @@ class NADE(nn.Module):
         optim_fn.step()
         loss_item = loss.detach().item()
 
-        # Garbage clean up
-        del loss, y_hat, x, y
-
         return loss_item
     
     def _eval(self, te_loader, loss_fn) -> float:
@@ -267,8 +264,12 @@ class Transformer(nn.Module):
         loss.backward()
         optim_fn.step()
         loss = loss.detach()
+        loss_item = loss.item()
 
-        return loss.item()
+        # Garbage clean up
+        del loss, y_hat, x, y
+
+        return loss_item
     
     def _eval(self, te_loader, loss_fn) -> float:
         val_loss = []
