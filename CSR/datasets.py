@@ -25,12 +25,13 @@ class ExchangeData(Dataset):
         return x, y
 
 def load_data(fn: str, item_len: int) -> np.ndarray:
-    data = np.loadtxt(fn, dtype='str')
-    data = data.item()
-    # Strip any commas
-    data = data.replace(",", "")
+    # Open the file and read all lines
+    with open(fn, 'r') as file:
+        data = file.read().replace(',', '')  # Read the whole file, remove commas
 
+    # Split into chunks of specified length and convert to float
     X = np.array([[float(c) for c in data[i:i+item_len]] for i in range(0, len(data), item_len)])
+    print(X)
     return X
 
 def build_datasets(X: np.ndarray, te_size=0.2) -> tuple:
