@@ -110,7 +110,10 @@ class NADE(nn.Module):
         _, _, x_hat = self._estimate_logits(a_d, x=None, sample=True)
         return x_hat.tolist()
     
-    def estimate_prob(self, x, y) -> list:
+    def estimate_prob(self, x: torch.tensor, y: torch.tensor) -> list:
+        self.to(self.device)
+        self.eval()
+        x = x.to(self.device)
         _, p_hat = self.forward(x)
         return p_hat.tolist()
     
@@ -275,7 +278,7 @@ class Transformer(nn.Module):
         val_loss = []
         self.eval()
 
-        for x, y in tqdm(te_loader):
+        for x, y in iter(te_loader):
             x, y = self._append_SOS_EOS(x), self._append_SOS_EOS(y) # append the SOS and EOS tokens
             x, y = x.to(self.device), y.to(self.device)
 
@@ -320,7 +323,7 @@ class Transformer(nn.Module):
 
         return y_input.view(-1).tolist()
     
-    def estimate_prob(self, x, y) -> torch.tensor:
+    def estimate_prob(self, x: torch.tensor, y: torch.tensor) -> torch.tensor:
         self.to(self.device)
         self.eval()
 
@@ -342,7 +345,7 @@ class Transformer(nn.Module):
             target_sequence = y[:, 1:]
             p_hat = torch.gather(ps, 1, target_sequence.unsqueeze(1)).squeeze(1)
 
-        return p_hat
+        return p_hat.tolist()
 
     def parameter_count(self):
         total_params = sum(p.numel() for p in self.parameters())
