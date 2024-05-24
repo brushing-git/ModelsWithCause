@@ -10,12 +10,12 @@ torch.manual_seed(0)
 np.random.seed(0)
 
 # Constants to be changed based on dataset and model params
-FN = 'markov_chain-dice-medium-training.txt'
-DATA_NAME = 'ME'
+FN = 'markov_chain-dice-100-intervention-training.txt'
+DATA_NAME = 'Intervention'
 TEXTLENGTH = 100
-CAT = 6
-SOS_TOKEN = 6 # This needs to be set depending on the type of dataset
-EOS_TOKEN = 7 # This needs to be set depending on the type of dataset
+CAT = 7 #6 for default, 7 for intervention
+SOS_TOKEN = 7 # This needs to be set depending on the type of dataset, 6 by default; 7 for intervention
+EOS_TOKEN = 8 # This needs to be set depending on the type of dataset, 7 by default; 8 for intervention
 BATCH_SIZE = 250
 N_HEADS = 10
 DECODER_LYRS = 4
