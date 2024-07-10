@@ -15,16 +15,16 @@ def build_dataset(name: str,
 
     # Build the dataset
     if intervention_p:
-        data, ps, param = build_intervention_big_dataset(rvs=rvs, 
+        data, ps, params = build_intervention_big_dataset(rvs=rvs, 
                                                          tr_size=size, 
                                                          seq_len=seq_len, 
                                                          intervention_p=intervention_p, 
-                                                         num_processes=16)
+                                                         num_processes=8)
     else:
         data, ps, params = build_markov_big_dataset(rvs=rvs, 
                                                     tr_size=size, 
                                                     seq_len=seq_len,
-                                                    num_processes=16)
+                                                    num_processes=8)
 
     # Save the dataset
     title = 'intervention' if intervention_p else 'normal'
@@ -78,4 +78,5 @@ def main():
         # Build the intervention dataset
         build_dataset(name, size=s, intervention_p=0.5)
 
-main()
+if __name__ == "__main__":
+    main()
