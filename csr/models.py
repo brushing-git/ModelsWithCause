@@ -1,10 +1,10 @@
 import torch
 import torch.nn as nn
-import CSR.utils as ut
+import csr.utils as ut
 from torch.distributions import Categorical
 from torch.nn.functional import softmax
 from torch.optim.lr_scheduler import CosineAnnealingLR
-from CSR.moe import MoEDecoderLayer, MoEDecoder
+from csr.moe import MoEDecoderLayer, MoEDecoder
 from math import log, sqrt
 from tqdm import tqdm
 

@@ -5,7 +5,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from torch.utils.data import DataLoader, SubsetRandomSampler
 from sklearn.model_selection import KFold
-from CSR.datasets import load_data, build_datasets
+from csr.datasets import load_data, build_datasets
 
 def kfold_cross_val(model, 
                     train_data,
