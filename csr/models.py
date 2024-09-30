@@ -210,8 +210,7 @@ class Transformer(nn.Module):
             num_decoder_layers=n_decoder_lyrs,
             dim_feedforward=ffn,
             dropout=dropout_p,
-            batch_first=False,
-            enable_nested_tensor=False
+            batch_first=False
         )
         self.out = nn.Linear(dim_model, n_tokens)
 
@@ -407,6 +406,8 @@ class DecoderTransformer(Transformer):
                         dropout_p=dropout_p, optimizer=optimizer, ffn=ffn,
                         SOS_token=SOS_token, EOS_token=EOS_token)
         
+        self.transformer = None
+
         decoder_lyr = nn.TransformerDecoderLayer(d_model=dim_model, 
                                                  nhead=n_heads, 
                                                  dim_feedforward=ffn, 
