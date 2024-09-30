@@ -3,20 +3,20 @@ import numpy as np
 import os
 from torch.utils.data import DataLoader
 from torch.nn import CrossEntropyLoss
-from CSR.models import MoEDecoderTransformer
-from CSR.datasets import load_data, build_datasets, build_trte_dataloader
+from csr.models import MoEDecoderTransformer
+from csr.datasets import load_data, build_datasets, build_trte_dataloader
 
 torch.manual_seed(0)
 np.random.seed(0)
 
 # Constants to be changed based on dataset and model params
-FN = 'markov_chain-dice-medium-training.txt'
-DATA_NAME = 'ME'
-TEXTLENGTH = 100
-CAT = 6
-SOS_TOKEN = 6 # This needs to be set depending on the type of dataset
-EOS_TOKEN = 7 # This needs to be set depending on the type of dataset
-BATCH_SIZE = 250
+FN = 'markov_chain-dice-100-normal-training.txt'
+DATA_NAME = 'ME-Normal'
+TEXTLENGTH = 6
+CAT = 6 #6 for default, 7 for intervention
+SOS_TOKEN = 6 # This needs to be set depending on the type of dataset, 6 by default; 7 for intervention
+EOS_TOKEN = 7 # This needs to be set depending on the type of dataset, 7 by default; 8 for intervention
+BATCH_SIZE = 100
 N_HEADS = 10
 DECODER_LYRS = 4
 DROPOUT = 0.0

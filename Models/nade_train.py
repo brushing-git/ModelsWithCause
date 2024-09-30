@@ -3,15 +3,15 @@ import numpy as np
 import os
 from torch.utils.data import DataLoader
 from torch.nn import CrossEntropyLoss
-from CSR.models import NADE
-from CSR.datasets import load_data, build_datasets, build_trte_dataloader
+from csr.models import NADE
+from csr.datasets import load_data, build_datasets, build_trte_dataloader
 
 torch.manual_seed(0)
 np.random.seed(0)
 
 # Constants to be changed based on dataset and model params
-FN = 'markov_chain-dice-medium-training.txt'
-DATA_NAME = 'ME'
+FN = 'markov_chain-dice-100-intervention-training.txt'
+DATA_NAME = 'ME-Intervention'
 TEXTLENGTH = 100
 CAT = 6
 HIDDEN_DIM = 16
