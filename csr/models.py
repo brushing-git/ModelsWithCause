@@ -42,7 +42,10 @@ class NADE(nn.Module):
         x_hat = []
         p_hat = []
 
-        for d in range(self.D):
+        # Set sequence length
+        seq_len = self.D if sample else x.shape[1]
+
+        for d in range(seq_len):
             h_d = self.activation(a_d)
             logits = h_d @ self.params['V'][:,d,:] + self.params['b'][d,:]
             p_d = self.logprob(logits)
@@ -349,7 +352,7 @@ class Transformer(nn.Module):
             ps = self.logprob(y_hat)
 
             # Get the correct labels and sum the right log probs
-            target_sequence = y[:, 1:]
+            target_sequence = y[:, 1:-1]
             p_hat = torch.gather(ps, 1, target_sequence.unsqueeze(1)).squeeze(1)
 
         return p_hat.tolist()

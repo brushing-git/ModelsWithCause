@@ -8,6 +8,7 @@ def compute_log_probs(
         model: torch.nn.Module,
         x_seq: torch.tensor,
         y_seq: torch.tensor,
+        nade: bool = False
     ) -> torch.tensor:
     """
     Compute the log probabilities of the next token given the input tokens.
@@ -31,31 +32,55 @@ def compute_log_probs(
 
     # Get the logit outputs
     with torch.no_grad():
-        # Append SOS and EOS tokens
-        x_seq, y_seq = model._append_SOS_EOS(x_seq), model._append_SOS_EOS(y_seq)
+        # Append SOS and EOS tokens if not nade
+        if not nade:
+            x_seq, y_seq = model._append_SOS_EOS(x_seq), model._append_SOS_EOS(y_seq)
+        
+        # Set to device
         x_seq, y_seq = x_seq.to(device), y_seq.to(device)
 
-        # Shift the target to create the input and expected outputs
-        y_input = y_seq[:, :-1] # ignore last token
-        y_expected = y_seq[:, 1:] # ignore the first token
-        seq_len = y_input.shape[1]
+        # For NADE
+        if nade:
+            # Pass through the NADE
+            x_seq = x_seq.float()
+            _, p_hat = model.forward(x_seq)
 
-        # Create target mask
-        tgt_mask = model._get_tgt_mask(seq_len).to(device)
 
-        # Forward pass through model
-        y_hat = model.forward(x_seq, y_input, tgt_mask) # shape (tgt_seq_len, batch_size, vocab_size)
-        y_hat = y_hat.permute(1, 0, 2) # shape (batch_size, tgt_seq_len, vocab_size)
+            # Reshape to (batch_size, seq_len, vocab_size)
+            batch_size, _ = p_hat.shape
+            D = x_seq.shape[1]
+            C = model.C
+            p_hat = p_hat.view(batch_size, D, C)
 
-        # Get the logits
-        last_logits = y_hat[:,-1,:] # shape (batch_size, vocab_size)
+            # Get the last log probs
+            last_log_probs = p_hat[:, -1, :] # shape (batch_size, vocab_size)
 
-        # Compute log probs        
-        log_probs = F.log_softmax(last_logits, dim=-1) # shape (batch_size, vocab_size)
+            # Move to CPU
+            last_log_probs = last_log_probs.to('cpu')
+
+            return last_log_probs
+        else:
+            # Shift the target to create the input and expected outputs
+            y_input = y_seq[:, :-1] # ignore last token
+            y_expected = y_seq[:, 1:] # ignore the first token
+            seq_len = y_input.shape[1]
+
+            # Create target mask
+            tgt_mask = model._get_tgt_mask(seq_len).to(device)
+
+            # Forward pass through model
+            y_hat = model.forward(x_seq, y_input, tgt_mask) # shape (tgt_seq_len, batch_size, vocab_size)
+            y_hat = y_hat.permute(1, 0, 2) # shape (batch_size, tgt_seq_len, vocab_size)
+
+            # Get the logits
+            last_logits = y_hat[:,-1,:] # shape (batch_size, vocab_size)
+
+            # Compute log probs        
+            log_probs = F.log_softmax(last_logits, dim=-1) # shape (batch_size, vocab_size)
     
-    # Move back to device
-    log_probs = log_probs.to(torch.device("cpu"))
-    return log_probs
+            # Move back to device
+            log_probs = log_probs.to(torch.device("cpu"))
+            return log_probs
 
 def js_divergence(
         log_probs_p: torch.tensor,
@@ -94,7 +119,8 @@ def js_divergence(
 def test_markov_property(
         model: torch.nn.Module,
         sequences: np.ndarray,
-        batch_size: int = 64
+        batch_size: int = 64,
+        nade: bool = False
 ) -> np.ndarray:
     """
     Test the Markov property for some given sequences.
@@ -103,6 +129,8 @@ def test_markov_property(
 
     model : torch.nn.Module : a language model of the transformer variety
     sequences : torch.tensor : a batch of sequences to be processed shape (n_samples, seq_len)
+    batch_size : int : size of the batches
+    nade : bool : indicates whether we are using a bool
 
     Returns:
 
@@ -146,8 +174,8 @@ def test_markov_property(
             y_seq_reduced = input_reduced.clone()
 
             # Compute log probabilities
-            log_probs_full = compute_log_probs(model, x_seq_full, y_seq_full)
-            log_probs_reduced = compute_log_probs(model, x_seq_reduced, y_seq_reduced)
+            log_probs_full = compute_log_probs(model, x_seq_full, y_seq_full, nade=nade)
+            log_probs_reduced = compute_log_probs(model, x_seq_reduced, y_seq_reduced, nade=nade)
 
             # Compute the Jensen-Shannon divergence
             divergence = js_divergence(log_probs_full, log_probs_reduced)
