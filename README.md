@@ -95,9 +95,3 @@ If you wish to contribute to this project, please follow these steps:
 3.  Make your changes.
 4.  Commit your changes with clear and descriptive messages.
 5.  Push your branch and open a pull request.
-
-## License
-
-*(This section is a placeholder. Please choose and specify an appropriate open-source license, e.g., MIT, Apache 2.0, GPL.)*
-
-This project is licensed under the \[MIT] - see the [LICENSE.md](LICENSE.md) file for details.
