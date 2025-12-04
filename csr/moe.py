@@ -28,8 +28,8 @@ class Expert(nn.Module):
     
     def forward(
             self, 
-            x: torch.tensor
-    ) -> torch.tensor:
+            x: torch.Tensor
+    ) -> torch.Tensor:
         """
         Forward pass through an expert.
 
@@ -71,7 +71,7 @@ class NoisyTopKRouter(nn.Module):
     
     def forward(
             self, 
-            x: torch.tensor
+            x: torch.Tensor
     ) -> tuple:
         """
         Forward pass that takes the top_k gate values.
@@ -102,7 +102,7 @@ class NoisyTopKRouter(nn.Module):
         noisy_logits = logits + noise
         
         # Take the top_k logits and indices
-        top_k_logits, indices = noise_logits.topk(self.top_k, dim=-1)
+        top_k_logits, indices = noisy_logits.topk(self.top_k, dim=-1)
 
         # Create sparse logits, i.e. 0 everywhere except on the top_k
         zeros = torch.full_like(noisy_logits, float('-inf'))
@@ -145,8 +145,8 @@ class SparseMoE(nn.Module):
     
     def forward(
             self, 
-            x: torch.tensor
-    ) -> torch.tensor:
+            x: torch.Tensor
+    ) -> torch.Tensor:
         """
         Forward pass on the switch MLP lyr
 
@@ -239,13 +239,13 @@ class MoEDecoderLayer(nn.Module):
     
     def forward(
             self, 
-            tgt: torch.tensor,
-            memory: torch.tensor,
-            tgt_mask: torch.tensor = None,
-            memory_mask: torch.tensor = None,
-            tgt_key_padding_mask: torch.tensor = None,
-            memory_key_padding_mask: torch.tensor = None
-    ) -> torch.tensor:
+            tgt: torch.Tensor,
+            memory: torch.Tensor,
+            tgt_mask: torch.Tensor | None = None,
+            memory_mask: torch.Tensor | None = None,
+            tgt_key_padding_mask: torch.Tensor | None = None,
+            memory_key_padding_mask: torch.Tensor | None = None
+    ) -> torch.Tensor:
         """
         Standard decoder layer algorithm:
 
@@ -280,10 +280,10 @@ class MoEDecoderLayer(nn.Module):
     
     def _sa_block(
             self, 
-            x: torch.tensor,
-            attn_mask: torch.tensor,
-            key_padding_mask: torch.tensor
-    ) -> torch.tensor:
+            x: torch.Tensor,
+            attn_mask: torch.Tensor,
+            key_padding_mask: torch.Tensor
+    ) -> torch.Tensor:
         """
         Applies self-attention
 
@@ -313,11 +313,11 @@ class MoEDecoderLayer(nn.Module):
     
     def _mha_block(
             self, 
-            x: torch.tensor,
-            mem: torch.tensor,
-            attn_mask: torch.tensor,
-            key_padding_mask: torch.tensor
-    ) -> torch.tensor:
+            x: torch.Tensor,
+            mem: torch.Tensor,
+            attn_mask: torch.Tensor,
+            key_padding_mask: torch.Tensor
+    ) -> torch.Tensor:
         """
         Applies cross attention.
 
@@ -348,8 +348,8 @@ class MoEDecoderLayer(nn.Module):
     
     def _moe_block(
             self, 
-            x: torch.tensor
-    ) -> torch.tensor:
+            x: torch.Tensor
+    ) -> torch.Tensor:
         """
         Applies MoE MLP.
 
@@ -391,13 +391,13 @@ class MoEDecoder(nn.Module):
     
     def forward(
             self, 
-            tgt: torch.tensor, 
-            memory: torch.tensor, 
-            tgt_mask: torch.tensor = None, 
-            memory_mask: torch.tensor = None, 
-            tgt_key_padding_mask: torch.tensor = None,
-            memory_key_padding_mask: torch.tensor = None
-    ) -> torch.tensor:
+            tgt: torch.Tensor, 
+            memory: torch.Tensor, 
+            tgt_mask: torch.Tensor | None = None, 
+            memory_mask: torch.Tensor | None = None, 
+            tgt_key_padding_mask: torch.Tensor | None = None,
+            memory_key_padding_mask: torch.Tensor | None = None
+    ) -> torch.Tensor:
         """
         Forward pass through the decoder.
 
