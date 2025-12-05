@@ -241,10 +241,10 @@ class MoEDecoderLayer(nn.Module):
             self, 
             tgt: torch.Tensor,
             memory: torch.Tensor,
-            tgt_mask: torch.Tensor | None = None,
-            memory_mask: torch.Tensor | None = None,
-            tgt_key_padding_mask: torch.Tensor | None = None,
-            memory_key_padding_mask: torch.Tensor | None = None
+            tgt_mask: torch.Tensor = None,
+            memory_mask: torch.Tensor = None,
+            tgt_key_padding_mask: torch.Tensor = None,
+            memory_key_padding_mask: torch.Tensor = None
     ) -> torch.Tensor:
         """
         Standard decoder layer algorithm:
@@ -393,10 +393,10 @@ class MoEDecoder(nn.Module):
             self, 
             tgt: torch.Tensor, 
             memory: torch.Tensor, 
-            tgt_mask: torch.Tensor | None = None, 
-            memory_mask: torch.Tensor | None = None, 
-            tgt_key_padding_mask: torch.Tensor | None = None,
-            memory_key_padding_mask: torch.Tensor | None = None
+            tgt_mask: torch.Tensor = None, 
+            memory_mask: torch.Tensor = None, 
+            tgt_key_padding_mask: torch.Tensor = None,
+            memory_key_padding_mask: torch.Tensor = None
     ) -> torch.Tensor:
         """
         Forward pass through the decoder.
