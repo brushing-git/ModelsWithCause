@@ -112,7 +112,7 @@ def calculate_order(
         tgt_mask = model._get_tgt_mask(sequence_length).to(model.device)
 
         y_hat = model.forward(x, y_input, tgt_mask)
-        y_hat = y_hat.permute(1,2,0) # Permute to (batch, tokens, length)
+        y_hat = y_hat.permute(0,2,1) if isinstance(model, MoEDecoderTransformer) else y_hat.permute(1,2,0) # Permute to (batch, tokens, length)
 
         # Get the order ranking across the sequence
         ps = model.logprob(y_hat)
