@@ -64,7 +64,7 @@ class NADE(nn.Module):
     
     def forward(
             self, 
-            x: torch.tensor
+            x: torch.Tensor
     ) -> tuple:
         # Initialize the initial input
         a_d = self.params['c'].expand(x.shape[0], -1)
@@ -76,10 +76,10 @@ class NADE(nn.Module):
 
     def _estimate_logits(
             self, 
-            a_d: torch.tensor, 
-            x: torch.tensor, 
-            sample=False
-    ) -> tuple:
+            a_d: torch.Tensor, 
+            x: torch.Tensor, 
+            sample: bool =False
+    ) -> tuple[torch.Tensor, torch.Tensor]:
         """
         Estimates the logits, log probabilities, and if sampling is required, returns a sample.
 
@@ -144,8 +144,8 @@ class NADE(nn.Module):
     
     def _compute_loss(
             self, 
-            y_hat: torch.tensor, 
-            y: torch.tensor, 
+            y_hat: torch.Tensor, 
+            y: torch.Tensor, 
             loss_fn: torch.nn.CrossEntropyLoss
     ) -> torch.Tensor:
         """
@@ -184,8 +184,8 @@ class NADE(nn.Module):
 
     def _train_step(
             self, 
-            x: torch.tensor, 
-            y: torch.tensor, 
+            x: torch.Tensor, 
+            y: torch.Tensor, 
             optim_fn: torch.optim.Optimizer, 
             loss_fn: torch.nn.CrossEntropyLoss
     ) -> float:
@@ -283,9 +283,9 @@ class NADE(nn.Module):
     
     def estimate_prob(
             self, 
-            x: torch.tensor, 
-            y: torch.tensor
-    ) -> list:
+            x: torch.Tensor, 
+            y: torch.Tensor
+    ) -> list[float]:
         """
         Gets the estimated probabilites from the input.
 
@@ -326,7 +326,7 @@ class NADE(nn.Module):
             epochs: int, 
             lr: float, 
             step_size: int = 50
-    ) -> dict:
+    ) -> dict[str, list[float]]:
         """
         Fits the model to a training data set and evaluates it.
 
@@ -437,8 +437,8 @@ class PositionalEncoding(nn.Module):
     
     def forward(
             self, 
-            token_embedding: torch.tensor
-    ) -> torch.tensor:
+            token_embedding: torch.Tensor
+    ) -> torch.Tensor:
         """
         Applies the positional encoder on input.
 
@@ -495,8 +495,8 @@ class GenerativeModel(nn.Module):
 
     def _append_SOS_EOS(
             self, 
-            x: torch.tensor
-    ) -> torch.tensor:
+            x: torch.Tensor
+    ) -> torch.Tensor:
         """
         Adds the start of sequence and end of sequence tokens to an input tensor.
 
@@ -521,7 +521,7 @@ class GenerativeModel(nn.Module):
     def _get_tgt_mask(
             self, 
             size: int
-    ) -> torch.tensor:
+    ) -> torch.Tensor:
         """
         Creates the causal mask for both src and tgt.
 
@@ -544,9 +544,9 @@ class GenerativeModel(nn.Module):
     
     def _create_pad_mask(
             self, 
-            matrix: torch.tensor, 
+            matrix: torch.Tensor, 
             pad_token: int
-    ) -> torch.tensor:
+    ) -> torch.Tensor:
         """
         Adds padding as needed for the sequence.
 
@@ -561,8 +561,8 @@ class GenerativeModel(nn.Module):
     
     def _train_step(
             self, 
-            x: torch.tensor, 
-            y: torch.tensor, 
+            x: torch.Tensor, 
+            y: torch.Tensor, 
             optim_fn: torch.optim.Optimizer, 
             loss_fn: torch.nn.CrossEntropyLoss
     ) -> float:
@@ -657,7 +657,7 @@ class GenerativeModel(nn.Module):
     
     def sample(
             self, 
-            x: torch.tensor, 
+            x: torch.Tensor, 
             max_length: int
     ) -> list:
         """
@@ -714,9 +714,9 @@ class GenerativeModel(nn.Module):
     
     def estimate_prob(
             self, 
-            x: torch.tensor, 
-            y: torch.tensor
-    ) -> torch.tensor:
+            x: torch.Tensor, 
+            y: torch.Tensor
+    ) -> torch.Tensor:
         """
         Estimates probabilities from the sequence.
 
@@ -782,7 +782,7 @@ class GenerativeModel(nn.Module):
             epochs: int, 
             lr: float, 
             step_size: int = 50
-    ) -> dict:
+    ) -> dict[str, list[float]]:
         """
         Fit method for training the Generative Model.
 
@@ -916,12 +916,12 @@ class Transformer(GenerativeModel):
 
     def forward(
             self, 
-            src: torch.tensor, 
-            tgt: torch.tensor, 
-            tgt_mask: torch.tensor = None, 
-            src_pad_mask: torch.tensor = None, 
-            tgt_pad_mask: torch.tensor = None
-    ) -> torch.tensor:
+            src: torch.Tensor, 
+            tgt: torch.Tensor, 
+            tgt_mask: torch.Tensor | None = None, 
+            src_pad_mask: torch.Tensor | None = None, 
+            tgt_pad_mask: torch.Tensor | None = None
+    ) -> torch.Tensor:
         """
         Implements a forward pass with the transformer block.
 
@@ -1017,12 +1017,12 @@ class DecoderTransformer(GenerativeModel):
     
     def forward(
             self, 
-            src: torch.tensor, 
-            tgt: torch.tensor, 
-            tgt_mask: torch.tensor = None, 
-            src_pad_mask: torch.tensor = None, 
-            tgt_pad_mask: torch.tensor = None
-    ) -> torch.tensor:
+            src: torch.Tensor, 
+            tgt: torch.Tensor, 
+            tgt_mask: torch.Tensor | None = None, 
+            src_pad_mask: torch.Tensor | None = None, 
+            tgt_pad_mask: torch.Tensor | None = None
+    ) -> torch.Tensor:
         """
         Implements a forward pass with the decoder block.
 
@@ -1123,12 +1123,12 @@ class MoEDecoderTransformer(GenerativeModel):
         
     def forward(
             self, 
-            src: torch.tensor, 
-            tgt: torch.tensor, 
-            tgt_mask: torch.tensor = None, 
-            src_pad_mask: torch.tensor = None, 
-            tgt_pad_mask: torch.tensor = None
-    ) -> torch.tensor:
+            src: torch.Tensor, 
+            tgt: torch.Tensor, 
+            tgt_mask: torch.Tensor = None, 
+            src_pad_mask: torch.Tensor = None, 
+            tgt_pad_mask: torch.Tensor = None
+    ) -> torch.Tensor:
         """
         Implements a forward pass with the decoder block.
 
