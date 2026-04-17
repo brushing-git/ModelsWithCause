@@ -15,9 +15,11 @@ effect size = 1.0, sample size = 630
 
 import torch
 import numpy as np
+import pandas as pd
 import concurrent.futures
 import os
 from tqdm import tqdm
+from scipy.stats import wasserstein_distance
 from src.data.datasets import load_data
 from src.data.generate_perms import build_permutations
 from src.nets.models import NADE, Transformer, DecoderTransformer, MoEDecoderTransformer
@@ -28,25 +30,31 @@ np.random.seed(123)
 rng = np.random.default_rng(123)
 
 # Data parameters
-FN = 'markov_chain-dice-100-training.txt'
-MARKOV = False # Set this parameter to generate permutations of Markov Exchangeable sequences
-TEXTLENGTH = 100
+FN = 'markov_chain-dice-100-normal-training.txt'
+PS_FN = 'markov_chain-dice-100-normal-probabilities.csv'
+MARKOV = True # Set this parameter to generate permutations of Markov Exchangeable sequences
+TEXTLENGTH = 6
 CAT = 6
 SOS_TOKEN = 6 # This needs to be set depending on the type of dataset
 EOS_TOKEN = 7 # This needs to be set depending on the type of dataset
 
 # Model parameters
 MODELS = ['NADE', 'Transformer', 'DecoderTransformer', 'MOE']
-MODEL = MODELS[0]
-MODEL_PATH = 'Transformer_5-2-8-2048.pt'
+MODEL = MODELS[1]
+MODEL_PATH = 'DecoderTransformer_10-4-4096.pt'
 
 # Experimental Data Parameters
 N_SAMPLES = 1598 # This is for the permutation data, we aim for 80% power at effect size 0.1
-N_PERMUTATIONS = 5 # Keep this low otherwise it will take forever to build the dataset
+N_PERMUTATIONS = 3 # Keep this low otherwise it will take forever to build the dataset
 DATASETS_NAMES = ['SE-coin', 'SE-dice', 'ME-coin', 'ME-dice']
 DATA_NAME = DATASETS_NAMES[3] # Set the index to the right name
 
 # Functions
+def load_probabilities(ps_fn: str) -> np.ndarray:
+    df = pd.read_csv(ps_fn)
+    data = df['0'].to_numpy()
+    return data
+
 def backtrack_search(variables: int, 
                      sequence: np.ndarray, 
                      n_perms: int, 
@@ -79,6 +87,7 @@ def exchangeable_permutations(sequence: np.ndarray,
     experiment_data[idx,1:,:] = perm_array[:,:]
 
 def build_experiment_data(dataset: np.ndarray, 
+                          ps: np.ndarray,
                           n_samples: int, 
                           n_permutations: int, 
                           variables: int,
@@ -90,6 +99,9 @@ def build_experiment_data(dataset: np.ndarray,
     # Build the permutations, we will store them in a (n_samples, n_permutations+1, sequence_length) array
     length = dataset.shape[1]
     experiment_data = np.zeros((n_samples, n_permutations+1, length))
+
+    # Storage for the probabilities
+    experiment_ps = np.zeros(n_samples)
 
     # Index counter for experiment_data
     i = 0
@@ -113,7 +125,10 @@ def build_experiment_data(dataset: np.ndarray,
                                             i)
                     try:
                         # Try to see if we can get a timely result
-                        result = future.result(timeout=30)
+                        result = future.result(timeout=5)
+                        # Store the probabilities
+                        experiment_ps[i] = ps[idx]
+                        # Increment the counter
                         i += 1
                     except concurrent.futures.TimeoutError:
                         print(f'Search timed out for index {idx}. Moving to the next sample.')
@@ -125,24 +140,58 @@ def build_experiment_data(dataset: np.ndarray,
                                               n_perms=n_permutations,
                                               experiment_data=experiment_data,
                                               idx=i)
+                    # Store the probabilities
+                    experiment_ps[i] = ps[idx]
                     i += 1
             else:
                 break
     
-    return experiment_data
+    return experiment_data, experiment_ps
 
-def test_model(model, exp_dataset) -> tuple:
+def calculate_wasserstein(ps: np.ndarray, probs_model: np.ndarray, probs_null: np.ndarray) -> np.ndarray:
+    # Create storage array
+    results = np.zeros((3,3))
+
+    # Convert to probabilities
+    ps, probs_model, probs_null = np.exp(ps.copy()), np.exp(probs_model.copy()), np.exp(probs_null.copy())
+
+    # Renormalize
+    ps /= np.sum(ps)
+    probs_model /= np.sum(probs_model)
+    probs_null /= np.sum(probs_null)
+
+    # Store in lists for iterating
+    prob_list = [ps, probs_model, probs_null]
+
+    # Iterate over list and store in array
+    for i, p1 in enumerate(prob_list):
+        for j, p2 in enumerate(prob_list):
+            results[i,j] = wasserstein_distance(p1, p2)
+    
+    return results
+
+def test_model(model, exp_dataset: np.ndarray, ps_dataset: np.ndarray) -> tuple:
     """
     Loops through an experimental dataset and computes the difference between the first sequence and its 
     permutations assigned log probabilities.
     """
 
-    results_perm = np.zeros((exp_dataset.shape[0], exp_dataset.shape[1]-1))
-    results_null = np.zeros((exp_dataset.shape[0], exp_dataset.shape[1]-1))
+    # Samples
+    samples = exp_dataset.shape[0]
 
+    # Results
+    results_perm = np.zeros((samples, exp_dataset.shape[1]-1))
+    results_null = np.zeros((samples, exp_dataset.shape[1]-1))
+
+    # Transforms
     transform = torch.from_numpy
-    indxs = [i for i in range(exp_dataset.shape[0])]
-    for i in tqdm(range(exp_dataset.shape[0])):
+    indxs = [i for i in range(samples)]
+
+    # Store the target probabilities for target and null
+    probs_model = np.zeros(samples)
+    probs_null = np.zeros(samples)
+
+    for i in tqdm(range(samples)):
         # Set target sequence and permutations
         target_sequence = exp_dataset[i,0,:]
         permutations = exp_dataset[i,1:,:]
@@ -154,6 +203,9 @@ def test_model(model, exp_dataset) -> tuple:
         # Register the original log probabilities
         target_log_prob = model.estimate_prob(target_sequence_x, target_sequence_y)
         target_log_prob = sum(target_log_prob[0])
+
+        # Store the model probabilities
+        probs_model[i] = target_log_prob
 
         # Loop through the permutations and store the difference in log probabilities
         for j in range(permutations.shape[0]):
@@ -177,9 +229,9 @@ def test_model(model, exp_dataset) -> tuple:
         random_indxs.remove(i)
         random_indxs = rng.choice(random_indxs, exp_dataset.shape[1]-1, replace=False)
         
-        for j in range(random_indxs.shape[0]):
+        for j, idx in enumerate(random_indxs):
             # Set the sequence and transform it
-            alt_sequence = exp_dataset[j,0,:]
+            alt_sequence = exp_dataset[idx,0,:]
             alt_sequence_x = transform(alt_sequence).type(torch.float).unsqueeze(0)
             alt_sequence_y = transform(alt_sequence).type(torch.long).unsqueeze(0)
 
@@ -187,47 +239,62 @@ def test_model(model, exp_dataset) -> tuple:
             alt_log_prob = model.estimate_prob(alt_sequence_x, alt_sequence_y)
             alt_log_prob = sum(alt_log_prob[0])
 
+            # Store the alt probs
+            probs_null[i] += alt_log_prob
+
             # Take the absolute value of the difference
             difference_log_prob = target_log_prob - alt_log_prob
 
             # Store the log probability
             results_null[i,j] = difference_log_prob
-    
-    return results_perm, results_null
 
-def build_model(model_name: str):
+        # Average the probs null
+        probs_null[i] = probs_null[i] / len(random_indxs)
+    
+    # Calculate the wasserstein distance
+    wass_distance = calculate_wasserstein(ps=ps_dataset, probs_model=probs_model, probs_null=probs_null)
+    
+    return results_perm, results_null, wass_distance, probs_model, probs_null
+
+def build_model(model_name: str, file_path: str, test_model=False):
     """
     Builds the appropriate model based on the model_name keyword.
     """
 
     if model_name == 'NADE':
         model = NADE(in_dim=TEXTLENGTH, hidden_dim=16, cat=CAT)
+        if test_model:
+            model.load_state_dict(torch.load(file_path, map_location=model.device))
         return model
     elif model_name == 'Transformer':
         model = Transformer(n_tokens=CAT+2, 
                             dim_model=TEXTLENGTH, 
-                            n_heads=5, 
+                            n_heads=6, 
                             n_encoder_lyrs=2,
                             n_decoder_lyrs=8,
                             dropout_p=0.0,
                             ffn=2048,
                             SOS_token=SOS_TOKEN,
                             EOS_token=EOS_TOKEN)
+        if test_model:
+            model.load_state_dict(torch.load(file_path, map_location=model.device))
         return model
     elif model_name == 'DecoderTransformer':
         model = DecoderTransformer(n_tokens=CAT+2,
                                    dim_model=TEXTLENGTH,
-                                   n_heads=10,
+                                   n_heads=6,
                                    n_decoder_lyrs=4,
                                    dropout_p=0.0,
                                    ffn=4096,
                                    SOS_token=SOS_TOKEN,
                                    EOS_token=EOS_TOKEN)
+        if test_model:
+            model.load_state_dict(torch.load(file_path, map_location=model.device))
         return model
     elif model_name == 'MOE':
         model = MoEDecoderTransformer(n_tokens=CAT+2,
                                       dim_model=TEXTLENGTH,
-                                      n_heads=10,
+                                      n_heads=6,
                                       n_decoder_lyrs=4,
                                       dropout_p=0.0,
                                       n_experts=5,
@@ -235,13 +302,15 @@ def build_model(model_name: str):
                                       ffn=4096,
                                       SOS_token=SOS_TOKEN,
                                       EOS_token=EOS_TOKEN)
+        if test_model:
+            model.load_state_dict(torch.load(file_path, map_location=model.device))
         return model
     else:
         raise Exception('Incorrect model name.  Must be one of NADE, Transformer, DecoderTransformer, MOE.')
     
 def main():
     # Set the directory to save the experiment
-    new_dir = "Experiment" + MODEL + DATA_NAME + str(TEXTLENGTH)
+    new_dir = "ExperimentNormal" + MODEL + DATA_NAME + str(TEXTLENGTH)
     path = os.getcwd()
     new_path = os.path.join(path, new_dir)
     os.makedirs(new_path, exist_ok=True)
@@ -249,17 +318,23 @@ def main():
     # Load and create the dataset
     print('Loading the data.')
     dataset = load_data(FN, TEXTLENGTH)
+    ps = load_probabilities(PS_FN)
     print('Building the experiment dataset.')
-    exp_data = build_experiment_data(dataset=dataset, 
-                                     n_samples=N_SAMPLES, 
-                                     n_permutations=N_PERMUTATIONS, 
-                                     variables=CAT,
-                                     markov=MARKOV)
+    exp_data, exp_ps = build_experiment_data(dataset=dataset, 
+                                             ps=ps,
+                                            n_samples=N_SAMPLES, 
+                                            n_permutations=N_PERMUTATIONS, 
+                                            variables=CAT,
+                                            markov=MARKOV)
     
     # Save the dataset
     print('Saving the experimental data.')
     fn = DATA_NAME + str(TEXTLENGTH) + 'samples-' + str(N_SAMPLES) + 'perms-' + str(N_PERMUTATIONS)
     flat_data = exp_data.reshape(-1, exp_data.shape[2]) # flatten out for saving
+    save_path = os.path.join(new_path, fn + '.csv')
+    np.savetxt(save_path, flat_data, delimiter=',')
+    fn = DATA_NAME + str(TEXTLENGTH) + 'samples-' + str(N_SAMPLES) + '_ps'
+    flat_data = exp_ps
     save_path = os.path.join(new_path, fn + '.csv')
     np.savetxt(save_path, flat_data, delimiter=',')
 
@@ -272,22 +347,69 @@ def main():
     # Build the model
     print('Build the model.')
     model_path = MODEL_PATH
-    model = build_model(MODEL)
+    model = build_model(MODEL, model_path, test_model=True)
 
     # Test the model
     print('Testing the model.')
-    results_perm, results_null = test_model(model=model, exp_dataset=exp_data)
+    results_perm, results_null, results_wasserstein, model_probs, null_probs = test_model(model=model, exp_dataset=exp_data, ps_dataset=exp_ps)
 
     # Save the perm results
     print('Saving the results.')
-    fn = MODEL + '-' + DATA_NAME + str(TEXTLENGTH) + '-permutation_results'
+    fn = MODEL + '-' + DATA_NAME + str(TEXTLENGTH) + '-train-permutation_results'
     save_path = os.path.join(new_path, fn + '.csv')
     np.savetxt(save_path, results_perm, delimiter=',')
 
     # Save the null results
-    fn = MODEL + '-' + DATA_NAME + str(TEXTLENGTH) + '-null_results'
+    fn = MODEL + '-' + DATA_NAME + str(TEXTLENGTH) + '-train-null_results'
     save_path = os.path.join(new_path, fn + '.csv')
     np.savetxt(save_path, results_null, delimiter=',')
+
+    # Save the wasserstein
+    fn = MODEL + '-' + DATA_NAME + str(TEXTLENGTH) + '-train_wasserstein_results'
+    save_path = os.path.join(new_path, fn + '.csv')
+    np.savetxt(save_path, results_wasserstein, delimiter=',')
+
+    # Save the model probabilities and null probs
+    fn = MODEL + '-' + DATA_NAME + str(TEXTLENGTH) + '-train_model_probs'
+    save_path = os.path.join(new_path, fn + '.csv')
+    np.savetxt(save_path, model_probs, delimiter=',')
+    fn = MODEL + '-' + DATA_NAME + str(TEXTLENGTH) + '-train_null_probs'
+    save_path = os.path.join(new_path, fn + '.csv')
+    np.savetxt(save_path, null_probs, delimiter=',')
+
+    # The No Train Results
+    # Build the model
+    print('Build the model.')
+    model_path = MODEL_PATH
+    model = build_model(MODEL, model_path, test_model=False)
+
+    # Test the model
+    print('Testing the model.')
+    results_perm, results_null, results_wasserstein, model_probs, null_probs = test_model(model=model, exp_dataset=exp_data, ps_dataset=exp_ps)
+
+    # Save the perm results
+    print('Saving the results.')
+    fn = MODEL + '-' + DATA_NAME + str(TEXTLENGTH) + '-notrain-permutation_results'
+    save_path = os.path.join(new_path, fn + '.csv')
+    np.savetxt(save_path, results_perm, delimiter=',')
+
+    # Save the null results
+    fn = MODEL + '-' + DATA_NAME + str(TEXTLENGTH) + '-notrain-null_results'
+    save_path = os.path.join(new_path, fn + '.csv')
+    np.savetxt(save_path, results_null, delimiter=',')
+
+    # Save the wasserstein
+    fn = MODEL + '-' + DATA_NAME + str(TEXTLENGTH) + '-notrain_wasserstein_results'
+    save_path = os.path.join(new_path, fn + '.csv')
+    np.savetxt(save_path, results_wasserstein, delimiter=',')
+
+    # Save the model probabilities and null probs
+    fn = MODEL + '-' + DATA_NAME + str(TEXTLENGTH) + '-notrain_model_probs'
+    save_path = os.path.join(new_path, fn + '.csv')
+    np.savetxt(save_path, model_probs, delimiter=',')
+    fn = MODEL + '-' + DATA_NAME + str(TEXTLENGTH) + '-notrain_null_probs'
+    save_path = os.path.join(new_path, fn + '.csv')
+    np.savetxt(save_path, null_probs, delimiter=',')
 
 if __name__ == "__main__":
     main()

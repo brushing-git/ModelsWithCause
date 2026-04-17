@@ -5,7 +5,7 @@ import time
 from itertools import product
 from scipy.stats import chi2_contingency, ncx2
 from tqdm import tqdm
-from csr.datasets import load_data
+from src.data.datasets import load_data
 
 FN = "markov_chain-dice-100-normal-training.txt"
 TEXTLENGTH = 100

@@ -16,12 +16,14 @@ effect size = 1.0, sample size = 630
 import torch
 import numpy as np
 import pandas as pd
-import concurrent.futures
 import os
+from typing import Any
 from tqdm import tqdm
-from csr.datasets import load_data
-from csr.independence_tests import *
-from csr.models import NADE, Transformer, DecoderTransformer, MoEDecoderTransformer
+from argparse import ArgumentParser
+from scipy import stats
+from src.data.datasets import load_data
+from src.tests.independence_tests import test_markov_property
+from src.nets.models import NADE, Transformer, DecoderTransformer, MoEDecoderTransformer
 
 # Set seeds
 torch.manual_seed(0)
@@ -29,7 +31,12 @@ np.random.seed(123)
 rng = np.random.default_rng(123)
 
 # Data parameters
-FN = 'markov_chain-dice-100-normal-training.txt'
+FNS = {
+    'NADE': 'nade_markov_chain-dice-100-normal-training.txt',
+    'Transformer': 'transformer_markov_chain-dice-100-normal-training.txt',
+    'DecoderTransformer': 'decodert_markov_chain-dice-100-normal-training.txt',
+    'MOE': 'moe_markov_chain-dice-100-normal-training.txt'
+}
 PS_FN = 'markov_chain-dice-100-normal-probabilities.csv'
 MARKOV = True # Set this parameter to generate permutations of Markov Exchangeable sequences
 TEXTLENGTH = 100
@@ -38,14 +45,19 @@ SOS_TOKEN = 6 # This needs to be set depending on the type of dataset
 EOS_TOKEN = 7 # This needs to be set depending on the type of dataset
 
 # Model parameters
-MODELS = ['NADE', 'Transformer', 'DecoderTransformer', 'MOE']
-MODEL = MODELS[2]
-MODEL_PATH = 'DecoderTransformer_10-4-4096.pt'
+MODELS = {
+    'NADE': 'NADE_160.0001_SEED_',
+    'Transformer': 'Transformer_5-2-8-2048_SEED_',
+    'DecoderTransformer': 'DecoderTransformer_10-4-4096_SEED_',
+    'MOE': 'MoEDecoderTransformer_10-4-5-4096_SEED_'
+}
 
 # Experimental Data Parameters
 N_SAMPLES = 6388 # This is for the number of samples to test independence against; we aim for 80% power at effect size 0.05
 DATASETS_NAMES = ['SE-coin', 'SE-dice', 'ME-coin', 'ME-dice']
-DATA_NAME = DATASETS_NAMES[3] # Set the index to the right name
+
+# Seeds
+SEEDS = [51, 92, 14, 71, 60]
 
 # Functions
 def load_probabilities(ps_fn: str) -> np.ndarray:
@@ -74,7 +86,7 @@ def test_model(
         model, 
         exp_dataset: np.ndarray,
         seq_len: int
-    ) -> tuple:
+    ) -> np.ndarray:
     """
     Loops through an experimental dataset and computes the difference between the first sequence and its 
     permutations assigned log probabilities.
@@ -135,8 +147,63 @@ def build_model(model_name: str, file_path: str, test_model=False):
         return model
     else:
         raise Exception('Incorrect model name.  Must be one of NADE, Transformer, DecoderTransformer, MOE.')
+
+def calculate_statistics(data: np.ndarray, confidence: float = 0.95) -> dict:
+    """
+    Calculate key statistics including confidence intervals.
+    
+    Args:
+        data: numpy array of values
+        confidence: confidence level for interval (default 0.95)
+    
+    Returns:
+        dict with mean, variance, std, and confidence interval
+    """
+    mean = np.mean(data)
+    variance = np.var(data, ddof=1)  # Sample variance
+    std = np.std(data, ddof=1)  # Sample standard deviation
+    n = len(data)
+    
+    # Calculate confidence interval using t-distribution
+    confidence_level = confidence
+    degrees_freedom = n - 1
+    t_value = stats.t.ppf((1 + confidence_level) / 2, degrees_freedom)
+    margin_error = t_value * (std / np.sqrt(n))
+    
+    ci_lower = mean - margin_error
+    ci_upper = mean + margin_error
+    
+    return {
+        'mean': mean,
+        'variance': variance,
+        'std': std,
+        'ci_lower': ci_lower,
+        'ci_upper': ci_upper,
+        'confidence': confidence,
+        'n': n
+    }
     
 def main():
+    parser = ArgumentParser(
+        prog='independence_experiments',
+        description='Loads models and data and runs independence tests.',
+        epilog='Only for use on experimental data.'
+    )
+    parser.add_argument('model', 
+                        help='The model name to be tested.',
+                        choices=list(MODELS.keys()),
+                        type=str)
+    parser.add_argument('data',
+                        help='The type of data to be tested.',
+                        choices=DATASETS_NAMES,
+                        type=str)
+    
+    args = parser.parse_args()
+    MODEL = args.model
+    MODEL_PATH = MODELS[args.model]
+    FN = FNS[args.model]
+    DATA_NAME = args.data
+    
     # Set the directory to save the experiment
     new_dir = "ExperimentIndependence" + MODEL + DATA_NAME + str(TEXTLENGTH)
     path = os.getcwd()
@@ -161,18 +228,41 @@ def main():
     fn = DATA_NAME + str(TEXTLENGTH) + 'samples-' + str(N_SAMPLES) + '_independence_tests_ps'
     flat_data = exp_ps
     save_path = os.path.join(new_path, fn + '.csv')
-    np.savetxt(save_path, flat_data, delimiter=',')    
+    np.savetxt(save_path, flat_data, delimiter=',')
 
-    # Build the model
-    print('Build the model.')
-    model_path = MODEL_PATH
-    model = build_model(MODEL, model_path, test_model=True)
+    # Storage for seed experiments
+    no_results = True
+    seed_results_list = []
 
-    # Test the model
-    print('Testing the model.')
-    results = test_model(
-        model=model, exp_dataset=exp_data, seq_len=TEXTLENGTH
-    )
+    # Loop through the seeds and test the models
+    for i, seed in enumerate(SEEDS):
+        print(f"Running experiment {i+1}/{len(SEEDS)} with seed {seed}")
+
+        # Build the model
+        print('Build the model.')
+        model_path = MODEL_PATH + f"{seed}.pt"
+        model = build_model(MODEL, model_path, test_model=True)
+
+        # Test the model
+        print('Testing the model.')
+        seed_results = test_model(
+            model=model, exp_dataset=exp_data, seq_len=TEXTLENGTH
+        )
+
+        # Store results for this seed
+        seed_results_list.append(seed_results)
+
+        if no_results:
+            results = seed_results.copy()
+            no_results = False
+        else:
+            results += seed_results
+
+    # Aggregate results (average across seeds)
+    results = results / len(SEEDS)
+    
+    # Convert seed_results_list to array for statistics calculation
+    seed_results_array = np.array(seed_results_list)
 
     # Save the independence results
     print('Saving the results.')
@@ -180,23 +270,96 @@ def main():
     save_path = os.path.join(new_path, fn + '.csv')
     np.savetxt(save_path, results, delimiter=',')
 
+    # Calculate and save statistics
+    print('Calculating statistics.')
+    stats_dict = calculate_statistics(results)
+    
+    # Also calculate statistics for each individual result if results is multidimensional
+    fn = MODEL + '-' + DATA_NAME + str(TEXTLENGTH) + '-train-independence_statistics'
+    save_path = os.path.join(new_path, fn + '.txt')
+    with open(save_path, 'w') as f:
+        f.write("=" * 80 + "\n")
+        f.write("Independence Test Results - Trained Models\n")
+        f.write("=" * 80 + "\n\n")
+        f.write(f"Model: {MODEL}\n")
+        f.write(f"Data: {DATA_NAME}\n")
+        f.write(f"Text Length: {TEXTLENGTH}\n")
+        f.write(f"Number of Samples: {N_SAMPLES}\n")
+        f.write(f"Number of Seeds: {len(SEEDS)}\n")
+        f.write(f"Seeds: {SEEDS}\n\n")
+        
+        f.write("-" * 80 + "\n")
+        f.write("JSD Statistics (Aggregated)\n")
+        f.write("-" * 80 + "\n")
+        f.write(f"Mean: {stats_dict['mean']:.6f}\n")
+        f.write(f"Variance: {stats_dict['variance']:.6f}\n")
+        f.write(f"Standard Deviation: {stats_dict['std']:.6f}\n")
+        f.write(f"{stats_dict['confidence']*100:.0f}% Confidence Interval: [{stats_dict['ci_lower']:.6f}, {stats_dict['ci_upper']:.6f}]\n")
+        f.write(f"Sample Size (n): {stats_dict['n']}\n\n")
+        
+        # Add per-seed statistics
+        f.write("-" * 80 + "\n")
+        f.write("Per-Seed Results\n")
+        f.write("-" * 80 + "\n")
+        for i, seed in enumerate(SEEDS):
+            seed_mean = np.mean(seed_results_list[i])
+            f.write(f"Seed {seed}: Mean JSD = {seed_mean:.6f}\n")
+
     # The No Train Results
+
+    # Reset all random states for reproducible non-trained comparison
+    torch.manual_seed(42)
+    np.random.seed(42)
+
     # Build the model
-    print('Build the model.')
+    print('Build the non-trained model.')
     model_path = MODEL_PATH
     model = build_model(MODEL, model_path, test_model=False)
 
     # Test the model
-    print('Testing the model.')
-    results = test_model(
+    print('Testing the non-trained model.')
+    results_notrain = test_model(
         model=model, exp_dataset=exp_data, seq_len=TEXTLENGTH
     )
 
     # Save the no train results
-    print('Saving the results.')
+    print('Saving the non-trained results.')
     fn = MODEL + '-' + DATA_NAME + str(TEXTLENGTH) + '-notrain-independence_results'
     save_path = os.path.join(new_path, fn + '.csv')
-    np.savetxt(save_path, results, delimiter=',')
+    np.savetxt(save_path, results_notrain, delimiter=',')
+
+    # Calculate and save statistics for non-trained model
+    print('Calculating statistics for non-trained model.')
+    stats_dict_notrain = calculate_statistics(results_notrain)
+    
+    fn = MODEL + '-' + DATA_NAME + str(TEXTLENGTH) + '-notrain-independence_statistics'
+    save_path = os.path.join(new_path, fn + '.txt')
+    with open(save_path, 'w') as f:
+        f.write("=" * 80 + "\n")
+        f.write("Independence Test Results - Non-Trained Model\n")
+        f.write("=" * 80 + "\n\n")
+        f.write(f"Model: {MODEL}\n")
+        f.write(f"Data: {DATA_NAME}\n")
+        f.write(f"Text Length: {TEXTLENGTH}\n")
+        f.write(f"Number of Samples: {N_SAMPLES}\n\n")
+        
+        f.write("-" * 80 + "\n")
+        f.write("JSD Statistics\n")
+        f.write("-" * 80 + "\n")
+        f.write(f"Mean: {stats_dict_notrain['mean']:.6f}\n")
+        f.write(f"Variance: {stats_dict_notrain['variance']:.6f}\n")
+        f.write(f"Standard Deviation: {stats_dict_notrain['std']:.6f}\n")
+        f.write(f"{stats_dict_notrain['confidence']*100:.0f}% Confidence Interval: [{stats_dict_notrain['ci_lower']:.6f}, {stats_dict_notrain['ci_upper']:.6f}]\n")
+        f.write(f"Sample Size (n): {stats_dict_notrain['n']}\n")
+
+    print("\n" + "=" * 80)
+    print("Experiment Complete!")
+    print("=" * 80)
+    print(f"\nTrained Model - Mean JSD: {stats_dict['mean']:.6f}")
+    print(f"Trained Model - 95% CI: [{stats_dict['ci_lower']:.6f}, {stats_dict['ci_upper']:.6f}]")
+    print(f"\nNon-Trained Model - Mean JSD: {stats_dict_notrain['mean']:.6f}")
+    print(f"Non-Trained Model - 95% CI: [{stats_dict_notrain['ci_lower']:.6f}, {stats_dict_notrain['ci_upper']:.6f}]")
+    print("=" * 80 + "\n")
 
 if __name__ == "__main__":
     main()

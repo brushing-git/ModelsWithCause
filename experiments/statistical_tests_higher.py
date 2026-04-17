@@ -88,11 +88,6 @@ def main():
     parser.add_argument('null_probs',
                         help='The null probabilities.',
                         type=str)
-    parser.add_argument('model_sim',
-                        help='The similarity values for the trained model.',
-                        type=str)
-    parser.add_argument('model_lev',
-                        help='The Levenshtein distance for the trained model')
     
     args = parser.parse_args()
     file_name = args.file_name
@@ -102,8 +97,6 @@ def main():
     fn_target_probs = args.target_probs
     fn_model_probs = args.model_probs
     fn_null_probs = args.null_probs
-    fn_model_sim = args.model_sim
-    fn_model_lev = args.model_lev
 
     # Load the data
     print('Loading the data.')
@@ -113,8 +106,6 @@ def main():
     target_probs = np.loadtxt(fn_target_probs, delimiter=',', dtype=float)
     model_probs = np.loadtxt(fn_model_probs, delimiter=',', dtype=float)
     null_probs = np.loadtxt(fn_null_probs, delimiter=',', dtype=float)
-    model_sim = np.loadtxt(fn_model_sim, delimiter=',', dtype=float)
-    model_lev = np.loadtxt(fn_model_lev, delimiter=',', dtype=float)
 
     # Compute the means across the permutations for each sample
     perm_data = np.mean(perm_data, axis=1)
@@ -133,10 +124,6 @@ def main():
     null_std = np.std(null_data)
     _, perm_minmax, _, perm_var, perm_skew, perm_ker = stats.describe(perm_data)
     _, null_minmax, _, null_var, null_skew, null_ker = stats.describe(null_data)
-
-    # Similarity and Levenshtein statistics
-    model_sim_mean, model_sim_std = np.mean(model_sim), np.std(model_sim)
-    model_lev_mean, model_lev_std = np.mean(model_lev), np.std(model_lev)
     
     # Save histograms of the mean data
     print('Generating histograms, saving figures, and summary statistics.')
@@ -305,19 +292,6 @@ def main():
                'Std',
                '0.95 CI']
     s = ('Probabilities Statistics\n\n' + tabulate([model_summary, null_summary], headers=headers) + '\n\n')
-    with open(fn, "a") as f:
-            f.write(s)
-    
-    # Save the similarity and Levenshtein statistics
-    model_summary = ['Trained Model', model_sim_mean, model_sim_std, model_lev_mean, model_lev_std]
-    headers = [
-          'Model',
-          'Similarity Mean',
-          'Similarity Std',
-          'Levenshtein Mean',
-          'Levenshtein Std'
-    ]
-    s = ('Similarity and Levenshtein Statistics\n\n' + tabulate([model_summary], headers=headers))
     with open(fn, "a") as f:
             f.write(s)
 

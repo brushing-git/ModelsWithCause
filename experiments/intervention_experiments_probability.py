@@ -19,8 +19,8 @@ import pandas as pd
 import os
 from tqdm import tqdm
 from scipy.stats import wasserstein_distance
-from csr.datasets import load_data
-from csr.models import NADE, Transformer, DecoderTransformer, MoEDecoderTransformer
+from src.data.datasets import load_data
+from src.nets.models import NADE, Transformer, DecoderTransformer, MoEDecoderTransformer
 
 # Set seeds
 torch.manual_seed(0)

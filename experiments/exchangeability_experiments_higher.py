@@ -23,7 +23,7 @@ from tqdm import tqdm
 from argparse import ArgumentParser
 from scipy.stats import wasserstein_distance, kendalltau
 from src.data.datasets import load_data
-from src.data.generate_perms import build_permutations
+from src.data.generate_perms import build_permutations_order2
 from src.nets.models import NADE, Transformer, DecoderTransformer, MoEDecoderTransformer
 
 # Set seeds
@@ -33,13 +33,13 @@ rng = np.random.default_rng(123)
 
 # Data parameters
 FNS = {
-    'NADE': 'nade_markov_chain-dice-100-normal-training.txt',
-    'Transformer': 'transformer_markov_chain-dice-100-normal-training.txt',
-    'DecoderTransformer': 'decodert_markov_chain-dice-100-normal-training.txt',
-    'MOE': 'moe_markov_chain-dice-100-normal-training.txt'
+    'NADE': 'nade_higher_markov_chain-dice-100-normal-training.txt',
+    'Transformer': 'transformer_higher_markov_chain-dice-100-normal-training.txt',
+    'DecoderTransformer': 'decodert_higher_markov_chain-dice-100-normal-training.txt',
+    'MOE': 'moe_higher_markov_chain-dice-100-normal-training.txt'
 }
-PS_FN = 'markov_chain-dice-100-normal-probabilities.csv'
-MAT_FN = 'markov_chain-dice-100-normal-markov_mats.csv'
+PS_FN = 'transformer_higher_markov_chain-dice-100-normal-probabilities.csv'
+MAT_FN = 'transformer_higher_markov_chain-dice-100-normal-markov_mats.csv'
 MARKOV = True # Set this parameter to generate permutations of Markov Exchangeable sequences
 TEXTLENGTH = 100
 CAT = 6
@@ -71,7 +71,7 @@ def _backtrack_worker(
         idx: int
 ) -> dict[str, Any]:
     try:
-        permutations = build_permutations(
+        permutations = build_permutations_order2(
             variables=variables,
             sequence=sequence,
             n_perms=n_perms
@@ -96,7 +96,7 @@ def backtrack_search(
         idx: int
 ) -> None:
     # Do the backtracking search
-    permutations = build_permutations(variables=variables, 
+    permutations = build_permutations_order2(variables=variables, 
                                       sequence=sequence, 
                                       n_perms=n_perms)
     # Store the original sequence as the first element in dim=1
@@ -122,117 +122,6 @@ def exchangeable_permutations(
     experiment_data[idx,0,:] = sequence[:]
     # Store the remainder as the following elements in in dim=1
     experiment_data[idx,1:,:] = perm_array[:,:]
-
-def calculate_order(
-        model: torch.nn.Module,
-        x: torch.Tensor,
-        y: torch.Tensor
-) -> tuple:
-    # Get the model logits
-    model.eval()
-    model.to(model.device)
-
-    with torch.no_grad():
-        if not isinstance(model, NADE):
-            x, y = model._append_SOS_EOS(x), model._append_SOS_EOS(y)
-        x, y = x.to(model.device), y.to(model.device)
-
-        # Shift the tgt and mask
-        y_input = y[:,:-1]
-        sequence_length = y_input.size(1)
-
-        if isinstance(model, NADE):
-            _, ps = model(x)
-            ps = ps.reshape(ps.shape[0], CAT, TEXTLENGTH)
-            ps = ps[:, :, 1:] # take everything from the first item on
-        else:
-            tgt_mask = model._get_tgt_mask(sequence_length).to(model.device)
-
-            y_hat = model(x, y_input, tgt_mask)
-
-            # Get the order ranking across the sequence
-            ps = model.logprob(y_hat)
-            ps = ps.permute(0,2,1)
-            ps = ps[:,:-2,2:-1] # We drop the first two items (sos token and the first item in the sequence) and the eos token
-        
-        values, indices = torch.sort(ps, dim=1, descending=True)
-
-        # Convert to numpy
-        values, indices, ps = values.squeeze().detach().cpu().numpy(), indices.squeeze().detach().cpu().numpy(), ps.squeeze().detach().cpu().numpy()
-    
-    return values, indices, ps
-
-def compare_ordering(
-        p1: np.ndarray,
-        p2: np.ndarray
-) -> float:
-    """
-    Takes two probability orderings for tokens of size (tokens, length) and compares them item by item in the length 
-    and returns a similarity score of the ranking. The similarity score is:
-
-    | order relations in p1 intersect order relations in p2 | / | order relations in p1 |
-
-    We do this by taking the rankings in both and seeing what elements are less than it in both.
-
-    Args:
-    p1 : np.ndarray : array of ranked by tokens with lower index meaning highest and higher index meaning lower shape (tokens, length)
-    p2 : np.ndarray : same as above
-
-    Return:
-    similarity_score : float : a float scoring the similarity
-    """
-    max = 0
-    total = 0
-    for i in range(p1.shape[1]):
-        for j in range(p1.shape[0]):
-            # Get the index of the value in j
-            indx = np.argmax(p2[:,i] == p1[j,i])
-
-            # Get the intersection of all common elements
-            intersection = np.intersect1d(p1[j+1:,i], p2[indx+1:,i])
-
-            # Get the quantity in common
-            if j + 1 < p1.shape[0]:
-                total += intersection.size / (p1.shape[0]-(j+1))
-                max += 1
-            else:
-                total += intersection.size
-
-    total /= max
-
-    return total
-
-def levenshtein_distance(
-        p1: np.ndarray,
-        p2: np.ndarray
-) -> float:
-    scores = np.zeros(p1.shape[1])
-
-    for i in range(p1.shape[1]):
-        seq1, seq2 = p1[:,i].flatten(), p2[:,i].flatten()
-
-        m, n = len(seq1), len(seq2)
-
-        matrix = np.zeros((m+1, n+1), dtype=int)
-        matrix[:, 0] = np.arange(m+1)
-        matrix[0, :] = np.arange(n+1)
-
-        for j in range(1, m+1):
-            for k in range(1, n+1):
-                if seq1[j-1] == seq2[k-1]:
-                    substitution_cost = 0
-                else:
-                    substitution_cost = 1
-                
-                matrix[j, k] = min(
-                    matrix[j-1, k] + 1,
-                    matrix[j, k-1] + 1,
-                    matrix[j-1, k-1] + substitution_cost
-                )
-        
-        scores[i] = 1 - matrix[m, n] / max(m, n)
-    
-    return scores.mean()
 
 def build_experiment_data(
         dataset: np.ndarray, 
@@ -369,7 +258,6 @@ def test_model(
         model: torch.nn.Module, 
         exp_dataset: np.ndarray, 
         ps_dataset: np.ndarray,
-        ps_matrix: np.ndarray
     ) -> tuple:
     """
     Loops through an experimental dataset and computes the difference between the first sequence and its 
@@ -391,7 +279,6 @@ def test_model(
     comparison_values : np.ndarray : the average difference between the target sequence and the model's conditional probs
     comparison_sim : np.ndarray : the average similarity between the target sequence and the model's probs
     """
-
     # Reset the random seed
     rng = np.random.default_rng(123)
 
@@ -409,14 +296,6 @@ def test_model(
     # Store the target probabilities for target and null
     probs_model = np.zeros(samples)
     probs_null = np.zeros(samples)
-
-    # Store the average comparison values
-    comparison_indices = np.zeros(samples)
-    comparison_values = np.zeros(samples)
-    comparison_sim = np.zeros(samples)
-    comparison_lev = np.zeros(samples)
-    comparison_rand = np.zeros(samples)
-    lev_rand = np.zeros(samples)
 
     for i in tqdm(range(samples)):
         # Set target sequence and permutations
@@ -477,65 +356,11 @@ def test_model(
 
         # Average the probs null
         probs_null[i] = probs_null[i] / len(random_indxs)
-
-        # Get the difference between the probabilities after the first item and the transition matrix
-        # Get the model's ordered probabilities
-        values, indices, ps = calculate_order(model, target_sequence_x, target_sequence_y)
-
-        # Create a comparison matrix
-        matrix_seq_ps = np.zeros_like(ps)
-        matrix_sort_ps = np.zeros_like(values)
-        matrix_sort_order = np.zeros_like(indices)
-
-        # Set the target portion of the ps_matrix
-        start_indx = int(target_sequence[0])
-        target_ps_matrix = ps_matrix[start_indx*CAT:(start_indx*CAT)+CAT]
-
-        for j in range(1, matrix_sort_ps.shape[1] + 1):
-            # Get the last item in the target sequence
-            indx = int(target_sequence[j-1])
-
-            # Set the corresponding row so that it is ordered
-            log_probs = np.log(target_ps_matrix[indx])
-            ps_sorted = np.sort(log_probs)[::-1]
-            order_sorted = np.argsort(log_probs)[::-1]
-
-            # Store the elements in the correct matrix
-            matrix_seq_ps[:, j-1] = log_probs
-            matrix_sort_ps[:, j-1] = ps_sorted
-            matrix_sort_order[:, j-1] = order_sorted
-        
-        # Get average identity between the matrices
-        comparison_order = (indices == matrix_sort_order).astype(np.float32)
-        comparison_indices[i] = comparison_order.mean()
-
-        # Get average difference between the probabilities
-        comparison_differences = values - matrix_sort_ps
-        comparison_values[i] = comparison_differences.mean()
-
-        # Get the similarities
-        comparison_sim[i] = compare_ordering(indices, matrix_sort_order)
-
-        # Get the levenshtein distance
-        comparison_lev[i] = levenshtein_distance(indices, matrix_sort_order)
-
-        # Generate and check from a random array
-        random_indices = np.concatenate([np.random.choice(np.arange(6), size=(indices.shape[0],1), replace=False) for _ in range(indices.shape[1])])
-        comparison_rand[i] = compare_ordering(random_indices, matrix_sort_order)
-        lev_rand[i] = levenshtein_distance(random_indices, matrix_sort_order)
     
     # Calculate the wasserstein distance
     wass_distance = calculate_wasserstein(ps=ps_dataset, probs_model=probs_model, probs_null=probs_null)
-
-    # Print the average of the random indices
-    print(f'The average similarity is {comparison_sim.mean()}')
-    print(f'The average similarity for randomly generated indices is {comparison_rand.mean()}')
-
-    # Print the test
-    print(f'The average levenshtein is {comparison_lev.mean()}')
-    print(f'The random levenshtein value is {lev_rand.mean()}')
     
-    return results_perm, results_null, wass_distance, probs_model, probs_null, comparison_indices, comparison_values, comparison_sim, comparison_lev
+    return results_perm, results_null, wass_distance, probs_model, probs_null
 
 def build_model(
         model_name: str, 
@@ -671,7 +496,7 @@ def main():
         # Test the model
         print('Testing the model.')
         seed_results = test_model(
-            model=model, exp_dataset=exp_data, ps_dataset=exp_ps, ps_matrix=ps_mats
+            model=model, exp_dataset=exp_data, ps_dataset=exp_ps
         )
 
         if no_results:
@@ -682,7 +507,7 @@ def main():
 
     # Aggregate results
     results = [result / len(SEEDS) for result in results]
-    results_perm, results_null, results_wasserstein, model_probs, null_probs, avg_comp, avg_diff, avg_sim, avg_lev = results
+    results_perm, results_null, results_wasserstein, model_probs, null_probs = results
     
     # Save the perm results
     print('Saving the results.')
@@ -708,30 +533,7 @@ def main():
     save_path = os.path.join(new_path, fn + '.csv')
     np.savetxt(save_path, null_probs, delimiter=',')
 
-    # Save the model comparisons
-    fn = MODEL + '-' + DATA_NAME + str(TEXTLENGTH) + '-train_avg_comparison'
-    save_path = os.path.join(new_path, fn + '.csv')
-    np.savetxt(save_path, avg_comp, delimiter=',')
-    print(f'The average comparison was {avg_comp.mean()}')
-    fn = fn = MODEL + '-' + DATA_NAME + str(TEXTLENGTH) + '-train_avg_difference'
-    save_path = os.path.join(new_path, fn + '.csv')
-    np.savetxt(save_path, avg_diff, delimiter=',')
-    print(f'The average difference was {avg_diff.mean()}')
-    fn = MODEL + '-' + DATA_NAME + str(TEXTLENGTH) + '-train_avg_sim'
-    save_path = os.path.join(new_path, fn + '.csv')
-    np.savetxt(save_path, avg_sim, delimiter=',')
-    print(f'The average similarity was {avg_sim.mean()}')
-    fn = MODEL + '-' + DATA_NAME + str(TEXTLENGTH) + '-train_avg_lev'
-    save_path = os.path.join(new_path, fn + '.csv')
-    np.savetxt(save_path, avg_lev, delimiter=',')
-    print(f'The average levenshtein was {avg_lev.mean()}')
-
     # The No Train Results
-
-    # Reset all random states for reproducible non-trained comparison
-    torch.manual_seed(42)
-    np.random.seed(42)
-
     # Build the model
     print('Build the model.')
     model_path = MODEL_PATH
@@ -739,8 +541,8 @@ def main():
 
     # Test the model
     print('Testing the model.')
-    results_perm, results_null, results_wasserstein, model_probs, null_probs, avg_comp, avg_diff, avg_sim, avg_lev = test_model(
-        model=model, exp_dataset=exp_data, ps_dataset=exp_ps, ps_matrix=ps_mats
+    results_perm, results_null, results_wasserstein, model_probs, null_probs = test_model(
+        model=model, exp_dataset=exp_data, ps_dataset=exp_ps
     )
 
     # Save the perm results
@@ -766,24 +568,6 @@ def main():
     fn = MODEL + '-' + DATA_NAME + str(TEXTLENGTH) + '-notrain_null_probs'
     save_path = os.path.join(new_path, fn + '.csv')
     np.savetxt(save_path, null_probs, delimiter=',')
-
-    # Save the model comparisons
-    fn = MODEL + '-' + DATA_NAME + str(TEXTLENGTH) + '-notrain_avg_comparison'
-    save_path = os.path.join(new_path, fn + '.csv')
-    np.savetxt(save_path, avg_comp, delimiter=',')
-    print(f'The average comparison for no train was {avg_comp.mean()}')
-    fn = fn = MODEL + '-' + DATA_NAME + str(TEXTLENGTH) + '-notrain_avg_difference'
-    save_path = os.path.join(new_path, fn + '.csv')
-    np.savetxt(save_path, avg_diff, delimiter=',')
-    print(f'The average difference for no train was {avg_diff.mean()}')
-    fn = MODEL + '-' + DATA_NAME + str(TEXTLENGTH) + '-notrain_avg_sim'
-    save_path = os.path.join(new_path, fn + '.csv')
-    np.savetxt(save_path, avg_sim, delimiter=',')
-    print(f'The average similarity was {avg_sim.mean()}')
-    fn = MODEL + '-' + DATA_NAME + str(TEXTLENGTH) + '-notrain_avg_lev'
-    save_path = os.path.join(new_path, fn + '.csv')
-    np.savetxt(save_path, avg_lev, delimiter=',')
-    print(f'The average levenshtein was {avg_lev.mean()}')
 
 if __name__ == "__main__":
     main()

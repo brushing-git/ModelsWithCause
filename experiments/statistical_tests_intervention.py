@@ -1,6 +1,6 @@
 import numpy as np
-import pymc as pm
-import arviz as az
+import os
+import pymc3 as pm
 import matplotlib.pyplot as plt
 from argparse import ArgumentParser
 from scipy import stats
@@ -10,56 +10,33 @@ from tabulate import tabulate
 UPPER_BOUNDS = [0.1, 0.25, 0.5, 1.0]
 LOWER_BOUNDS = [-0.1, -0.25, -0.5, -1.0]
 
-# Rounding bounds
-DIGITS = 6
-
 # Functions for Bayesian analysis
-def compute_bayesian_stats(data: np.ndarray, credibility_level: float = 0.95) -> tuple:
+def compute_bayesian_stats(data: np.ndarray, credibility_level: float =0.95) -> tuple:
     """
     Returns credibility interval and HDI.
-    
-    Updated to use PyMC v5 API:
-    - pm.sample() returns InferenceData by default
-    - HDI is computed using arviz.hdi()
     """
     with pm.Model() as model:
-        # Normal prior
+        # Standard normal prior
         mu = pm.Normal('mu', mu=0.0, sigma=10.0)
         sigma = pm.HalfNormal('sigma', sigma=1.0)
 
         # Likelihood
         likelihood = pm.Normal('likelihood', mu=mu, sigma=sigma, observed=data)
 
-        # Sample from posterior (returns InferenceData in PyMC v5)
-        idata = pm.sample(5000, progressbar=True)
+        # Sample from posterior
+        trace = pm.sample(5000, return_inferencedata=False)
 
-        # Extract posterior samples for mu
-        mu_samples = idata.posterior['mu'].values.flatten()
+        # Compute credibility interval
+        ci_lower = np.percentile(trace['mu'], 100 * (1 - credibility_level) / 2)
+        ci_upper = np.percentile(trace['mu'], 100 * (1 + credibility_level) / 2)
 
-        # Compute credibility interval (equal-tailed interval)
-        ci_lower = np.percentile(mu_samples, 100 * (1 - credibility_level) / 2)
-        ci_upper = np.percentile(mu_samples, 100 * (1 + credibility_level) / 2)
+        # Implement HDI
+        hdi = pm.hdi(trace['mu'], hdi_prob=credibility_level)
 
-        # Compute HDI using arviz
-        hdi_result = az.hdi(idata, var_names=['mu'], hdi_prob=credibility_level)
-        hdi_lower = float(hdi_result['mu'].sel(hdi='lower').values)
-        hdi_upper = float(hdi_result['mu'].sel(hdi='higher').values)
+        # hdi output is a dictionary with keys 'lower' and 'upper'
+        hdi_lower, hdi_upper = hdi[0], hdi[1]
     
     return (ci_lower, ci_upper), (hdi_lower, hdi_upper)
-
-# Function for variance confidence interval
-def compute_variance_interval(data: np.ndarray, confidence_level: float = 0.95) -> tuple:
-    """
-    Returns confidence interval for the variance.
-    """
-    n = len(data)
-    var = np.var(data, ddof=1)
-    a, b = stats.chi2(df=n-1).interval(confidence_level)
-    
-    ci_lower = np.sqrt((n - 1) * var / b)
-    ci_upper = np.sqrt((n - 1) * var / a)
-    
-    return ci_lower, ci_upper
 
 def main():
     parser = ArgumentParser(
@@ -67,9 +44,6 @@ def main():
         description='Loads .csv files and and runs some tests.',
         epilog='Only for use on experimental data.'
     )
-    parser.add_argument('file_name',
-                        help='The file name.',
-                        type=str)
     parser.add_argument('perm_data', 
                         help='The permutation data to be tested.',
                         type=str)
@@ -79,46 +53,17 @@ def main():
     parser.add_argument('wasserstein', 
                         help='The Wasserstein data.',
                         type=str)
-    parser.add_argument('target_probs',
-                        help='The target distribution probabilities.',
-                        type=str)
-    parser.add_argument('model_probs',
-                        help='The model probabilities.',
-                        type=str)
-    parser.add_argument('null_probs',
-                        help='The null probabilities.',
-                        type=str)
-    parser.add_argument('model_sim',
-                        help='The similarity values for the trained model.',
-                        type=str)
-    parser.add_argument('model_lev',
-                        help='The Levenshtein distance for the trained model')
     
     args = parser.parse_args()
-    file_name = args.file_name
     fn_perm = args.perm_data
     fn_null = args.null_data
     fn_wasser = args.wasserstein
-    fn_target_probs = args.target_probs
-    fn_model_probs = args.model_probs
-    fn_null_probs = args.null_probs
-    fn_model_sim = args.model_sim
-    fn_model_lev = args.model_lev
 
     # Load the data
     print('Loading the data.')
     perm_data = np.loadtxt(fn_perm, delimiter=',', dtype=float)
     null_data = np.loadtxt(fn_null, delimiter=',', dtype=float)
     wasser_data = np.loadtxt(fn_wasser, delimiter=',', dtype=float)
-    target_probs = np.loadtxt(fn_target_probs, delimiter=',', dtype=float)
-    model_probs = np.loadtxt(fn_model_probs, delimiter=',', dtype=float)
-    null_probs = np.loadtxt(fn_null_probs, delimiter=',', dtype=float)
-    model_sim = np.loadtxt(fn_model_sim, delimiter=',', dtype=float)
-    model_lev = np.loadtxt(fn_model_lev, delimiter=',', dtype=float)
-
-    # Compute the means across the permutations for each sample
-    perm_data = np.mean(perm_data, axis=1)
-    null_data = np.mean(null_data, axis=1)
 
     # Set the critical threshold
     alpha = 0.05
@@ -133,27 +78,23 @@ def main():
     null_std = np.std(null_data)
     _, perm_minmax, _, perm_var, perm_skew, perm_ker = stats.describe(perm_data)
     _, null_minmax, _, null_var, null_skew, null_ker = stats.describe(null_data)
-
-    # Similarity and Levenshtein statistics
-    model_sim_mean, model_sim_std = np.mean(model_sim), np.std(model_sim)
-    model_lev_mean, model_lev_std = np.mean(model_lev), np.std(model_lev)
     
     # Save histograms of the mean data
     print('Generating histograms, saving figures, and summary statistics.')
     fig, axs = plt.subplots(nrows=1, ncols=2, figsize=(7,5))
     axs[0].hist(perm_data, bins=100)
-    axs[0].set_title('Permutation Means')
+    axs[0].set_title('Intervention Means')
     axs[1].hist(null_data, bins=100)
     axs[1].set_title('Null Means')
     fig.tight_layout()
-    plt.savefig(f'{file_name}_histograms_data.png')
+    plt.savefig('histograms_data.png')
 
     # Save the Wasserstein Plots
     print('Generating Wasserstein plots and saving.')
     fig, axs = plt.subplots(figsize=(7,5))
     cax = axs.imshow(wasser_data, cmap='viridis')
     fig.colorbar(cax)
-    labels = ['Target Distribution', 'Model Distribution', 'Random Sample']
+    labels = ['Intervention Distribution', 'Model Distribution', 'Random Sample']
     axs.set_title('Wasserstein Distances')
     axs.set_xlabel('Distributions')
     axs.set_ylabel('Distributions') 
@@ -163,10 +104,10 @@ def main():
     axs.set_yticklabels(labels)
     plt.xticks(rotation=45, ha='right')
     fig.tight_layout()
-    plt.savefig(f'{file_name}_wasserstein_data.png')
+    plt.savefig('wasserstein_data.png')
 
     # Save summary statistics
-    perm_summary = ['Permutation Data', perm_mean, perm_minmax, perm_var, perm_skew, perm_ker]
+    perm_summary = ['Intervention Data', perm_mean, perm_minmax, perm_var, perm_skew, perm_ker]
     null_summary = ['Null Data', null_mean, null_minmax, null_var, null_skew, null_ker]
     headers = ['Dataset',
                'Mean',
@@ -175,7 +116,7 @@ def main():
                'Skewness',
                'Kurtosis']
     s = ('Summary Statistics\n\n' + tabulate([perm_summary, null_summary], headers=headers) + '\n\n')
-    fn = f'{file_name}_statistic_results.txt'
+    fn = 'statistic_results.txt'
     with open(fn, "a") as f:
             f.write(s)
     
@@ -185,20 +126,10 @@ def main():
     # First test that the perm and null have identical means
     t_statistic, p_value = stats.ttest_ind(perm_data, null_data, equal_var=False) # The variances will be different
     difference_test = "Reject" if p_value / 2 < alpha else "Fail"
-    s = ('Difference in means between permutation and null data:\n' + 
+    s = ('Difference in means between Intervention and null data:\n' + 
          f'T-statistic: {t_statistic}\n' +
          f'p-values: {p_value}\n' + 
          f'Reject/Fail: {difference_test}\n\n')
-    with open(fn, "a") as f:
-            f.write(s)
-    
-    # Second test for constructing CI on variance
-    conf_int_perm = compute_variance_interval(perm_data, confidence_level=0.95)
-    conf_int_null = compute_variance_interval(null_data, confidence_level=0.95)
-
-    s = ('0.95 Confidence Interval on Variance with Chi-Square Test:\n' +
-         f'Permutation Data: {conf_int_perm}\n' +
-         f'Null Data: {conf_int_null}\n\n')
     with open(fn, "a") as f:
             f.write(s)
 
@@ -214,12 +145,9 @@ def main():
 
         # Confidence interval 0.95
         conf_int = stats.norm.interval(0.95, loc=perm_mean, scale=perm_std/np.sqrt(n))
-        conf_int = (round(conf_int[0], DIGITS), round(conf_int[1], DIGITS))
 
         # Credibility interval 0.95
         cred_int, hdi_int = compute_bayesian_stats(perm_data, 0.95)
-        cred_int = (round(cred_int[0], DIGITS), round(cred_int[1], DIGITS))
-        hdi_int = (round(hdi_int[0], DIGITS), round(hdi_int[1], DIGITS))
 
         # Store the results
         perm_stats = ['Permutation Statistics', 
@@ -242,12 +170,9 @@ def main():
 
         # Confidence interval 0.95
         conf_int = stats.norm.interval(0.95, loc=null_mean, scale=null_std/np.sqrt(n))
-        conf_int = (round(conf_int[0], DIGITS), round(conf_int[1], DIGITS))
 
         # Credibility interval 0.95
         cred_int, hdi_int = compute_bayesian_stats(null_data, 0.95)
-        cred_int = (round(cred_int[0], DIGITS), round(cred_int[1], DIGITS))
-        hdi_int = (round(hdi_int[0], DIGITS), round(hdi_int[1], DIGITS))
 
         null_stats = ['Null Statistics', 
                        t_statistic_low, 
@@ -277,48 +202,6 @@ def main():
         # Save the results
         print('Saving results.')
         with open(fn, "a") as f:
-            f.write(s)
-    
-    # Statistics for probabilities to see how close the distributions are to one another
-    print('Computing the statistics for differences in probabilities.')
-    # Compute differences
-    difference_probs_targetmodel = model_probs - target_probs
-    difference_probs_targetnull = null_probs - target_probs
-
-    # Compute the average
-    avg_difference_targetmodel = np.mean(difference_probs_targetmodel)
-    avg_difference_targetnull = np.mean(difference_probs_targetnull)
-
-    # Compute std deviation
-    std_difference_targetmodel = np.std(difference_probs_targetmodel)
-    std_difference_targetnull = np.std(difference_probs_targetnull)
-    
-    # Compute the confidence intervals at 0.95
-    conf_int_targetmodel = stats.norm.interval(0.95, loc=avg_difference_targetmodel, scale=std_difference_targetmodel/np.sqrt(n))
-    conf_int_targetnull = stats.norm.interval(0.95, loc=avg_difference_targetnull, scale=std_difference_targetnull/np.sqrt(n))
-
-    # Save summary statistics
-    model_summary = ['Model Data', avg_difference_targetmodel, std_difference_targetmodel, conf_int_targetmodel]
-    null_summary = ['Null Data', avg_difference_targetnull, std_difference_targetnull, conf_int_targetnull]
-    headers = ['Dataset',
-               'Mean',
-               'Std',
-               '0.95 CI']
-    s = ('Probabilities Statistics\n\n' + tabulate([model_summary, null_summary], headers=headers) + '\n\n')
-    with open(fn, "a") as f:
-            f.write(s)
-    
-    # Save the similarity and Levenshtein statistics
-    model_summary = ['Trained Model', model_sim_mean, model_sim_std, model_lev_mean, model_lev_std]
-    headers = [
-          'Model',
-          'Similarity Mean',
-          'Similarity Std',
-          'Levenshtein Mean',
-          'Levenshtein Std'
-    ]
-    s = ('Similarity and Levenshtein Statistics\n\n' + tabulate([model_summary], headers=headers))
-    with open(fn, "a") as f:
             f.write(s)
 
 if __name__ == "__main__":
